@@ -50,6 +50,7 @@ public final class TestsOverlay implements IGuiOverlay {
 
         final Font font = gui.getFont();
         final int startX = 10, startY = 10;
+        final int maxWidth = screenWidth / 3;
         int x = startX, y = startY;
         int maxX = x;
 
@@ -94,14 +95,14 @@ public final class TestsOverlay implements IGuiOverlay {
                         RenderSystem.defaultBlendFunc();
                     });
 
-                    final XY xy = renderTest(gui, font, test, poseStack, x, y, ((int)(fade * 255f) << 24) | 0xffffff, renderingQueue);
+                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, ((int)(fade * 255f) << 24) | 0xffffff, renderingQueue);
                     y = xy.y() + 5;
                     maxX = Math.max(maxX, xy.x());
 
                     renderingQueue.add(RenderSystem::disableBlend);
                     fading.put(test, fade);
                 } else {
-                    final XY xy = renderTest(gui, font, test, poseStack, x, y, 0xffffff, renderingQueue);
+                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue);
                     y = xy.y() + 5;
                     maxX = Math.max(maxX, xy.x());
                 }
@@ -111,7 +112,7 @@ public final class TestsOverlay implements IGuiOverlay {
             lastRenderedTests.addAll(actuallyToRender);
         } else {
             for (final Test test : enabled) {
-                final XY xy = renderTest(gui, font, test, poseStack, x, y, 0xffffff, renderingQueue);
+                final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue);
                 y = xy.y() + 5;
                 maxX = Math.max(maxX, xy.x());
             }
@@ -142,7 +143,7 @@ public final class TestsOverlay implements IGuiOverlay {
     ));
 
     // TODO - maybe "group" together tests in the same group?
-    private XY renderTest(ForgeGui gui, Font font, Test test, PoseStack stack, int x, int y, int colour, List<Runnable> rendering) {
+    private XY renderTest(ForgeGui gui, Font font, Test test, PoseStack stack, int maxWidth, int x, int y, int colour, List<Runnable> rendering) {
         final FormattedCharSequence bullet = Component.literal("• ").withStyle(ChatFormatting.BLACK).getVisualOrderText();
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, bullet, x$, y$ - 1, colour)));
         x += font.width(bullet) + 1;
@@ -156,17 +157,17 @@ public final class TestsOverlay implements IGuiOverlay {
         final Component title = statusColoured(test.visuals().title(), test.status()).append(":");
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, title, x$, y$, colour)));
 
-        final List<Component> extras = new ArrayList<>();
-        if (Screen.hasShiftDown()) extras.addAll(test.visuals().description());
+        final List<FormattedCharSequence> extras = new ArrayList<>();
+        if (Screen.hasShiftDown()) extras.addAll(test.visuals().description().stream().flatMap(it -> font.split(it, maxWidth).stream()).toList());
         if (test.status().result() != Test.Result.PASSED && !test.status().message().isBlank()) {
-            extras.add(Component.literal("!!! " + test.status().message()).withStyle(ChatFormatting.RED));
+            extras.add(Component.literal("!!! " + test.status().message()).withStyle(ChatFormatting.RED).getVisualOrderText());
         }
 
         int maxX = x;
         y += font.lineHeight + 2;
         if (!extras.isEmpty()) {
             x += 6;
-            for (final Component extra : extras) {
+            for (final FormattedCharSequence extra : extras) {
                 rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, extra, x$, y$, 0xffffff)));
                 y += font.lineHeight;
                 maxX = Math.max(maxX, x + font.width(extra));
@@ -180,18 +181,6 @@ public final class TestsOverlay implements IGuiOverlay {
     private Runnable withXY(int x, int y, IntBiConsumer consumer) {
         return () -> consumer.accept(x, y);
     }
-
-    /* TODO private List<Component> splitIfTooLong(Font font, Component component, int maxWidth) {
-        final int width = font.width(component);
-        if (width > maxWidth) {
-            return component.visit((style, text) -> {
-                final List<Component> lines = new ArrayList<>();
-                final int lastSpace = text.lastIndexOf(" ");
-                return java.util.Optional.of(lines);
-            }, component.getStyle()).orElseThrow();
-        }
-        return List.of(component);
-    } */
 
     private MutableComponent statusColoured(Component input, Test.Status status) {
         return switch (status.result()) {
