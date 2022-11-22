@@ -6,12 +6,16 @@ import com.matyrobbrt.testframework.TestHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 public abstract class AbstractTest implements Test {
     protected TestFramework framework;
     protected String id;
+    protected final List<String> groups = new ArrayList<>();
     protected boolean enabledByDefault;
     protected Visuals visuals;
     private Status status = new Status(Result.NOT_PROCESSED, "");
@@ -24,6 +28,7 @@ public abstract class AbstractTest implements Test {
                 Component.literal(marker.title().isBlank() ? id : marker.title()),
                 Stream.of(marker.description()).<Component>map(Component::literal).toList()
         );
+        groups.addAll(List.of(marker.groups()));
     }
 
     @Override
@@ -56,12 +61,21 @@ public abstract class AbstractTest implements Test {
         return visuals;
     }
 
+    @Override
+    public List<String> groups() {
+        return groups;
+    }
+
     public boolean isEnabled() {
         return framework.tests().isEnabled(id());
     }
 
     public void enable() {
         framework.setEnabled(this, true, null);
+    }
+
+    public Logger getLogger() {
+        return framework.logger();
     }
 
     public void updateStatus(Status status, @Nullable Entity changer) {

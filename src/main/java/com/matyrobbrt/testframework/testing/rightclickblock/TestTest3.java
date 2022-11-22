@@ -1,4 +1,4 @@
-package com.matyrobbrt.testframework.testing;
+package com.matyrobbrt.testframework.testing.rightclickblock;
 
 import com.matyrobbrt.testframework.impl.AbstractTest;
 import com.matyrobbrt.testframework.TestHolder;
@@ -12,7 +12,8 @@ import net.minecraftforge.fml.common.Mod;
         description = {
                 "Right-click a block with iron.",
                 "Sneaking will result in a fail!"
-        }
+        },
+        groups = "events.rightclickblock"
 )
 public class TestTest3 extends AbstractTest {
     @Override

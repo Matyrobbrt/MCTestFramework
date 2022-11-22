@@ -1,25 +1,25 @@
-package com.matyrobbrt.testframework.testing;
+package com.matyrobbrt.testframework.testing.rightclickblock;
 
 import com.matyrobbrt.testframework.impl.AbstractTest;
 import com.matyrobbrt.testframework.TestHolder;
-import net.minecraft.world.item.Items;
+import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @TestHolder(
-        value = "hello_test_glowstone",
-        title = "Glowstone Right Click",
+        value = "hello_test_bone",
+        title = "Bone Right Click",
         description = {
-                "Right-click a block with glowstone.",
+                "Right-click a block with a bone.",
                 "Sneaking will result in a fail!"
         },
-        enabledByDefault = false
+        groups = "events.rightclickblock"
 )
-public class TestTest1 extends AbstractTest {
+public class TestTest extends AbstractTest {
     @Override
     public void onEnabled(EventListenerCollector buses) {
         buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final PlayerInteractEvent.RightClickBlock event) -> {
-            if (!event.getLevel().isClientSide && event.getItemStack().is(Items.GLOWSTONE)) {
+            if (!event.getLevel().isClientSide && event.getItemStack().is(Tags.Items.BONES)) {
                 if (event.getEntity().isShiftKeyDown()) {
                     fail("Do not click while sneaking");
                 } else {
@@ -28,6 +28,9 @@ public class TestTest1 extends AbstractTest {
             }
         });
     }
+
     @Override
-    public void onDisabled() {}
+    public void onDisabled() {
+
+    }
 }

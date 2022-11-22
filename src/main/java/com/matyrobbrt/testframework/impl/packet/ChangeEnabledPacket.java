@@ -24,7 +24,7 @@ public record ChangeEnabledPacket(TestFrameworkImpl framework, String testId, bo
             }
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
-                if (Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
+                if (framework.configuration.modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
                     framework.setEnabled(
                             framework.tests().byId(testId).orElseThrow(),
                             enabled, player

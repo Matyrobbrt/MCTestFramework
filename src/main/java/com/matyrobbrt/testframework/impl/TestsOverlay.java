@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 
 public final class TestsOverlay implements IGuiOverlay {
     public static final int MAX_DISPLAYED = 5;
+    // TODO - this will need to be rendered with transparency instead of using an already-transparent texture
+    public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background2.png");
 
     private final TestFrameworkImpl impl;
     private final BooleanSupplier enabled;
@@ -47,9 +49,15 @@ public final class TestsOverlay implements IGuiOverlay {
         if (enabled.isEmpty()) return;
 
         final Font font = gui.getFont();
-        int startX = 10, startY = 10;
-        Screen.drawString(poseStack, font, Component.literal("Tests overlay for ").append(Component.literal(impl.id().toString()).withStyle(ChatFormatting.AQUA)), startX, startX, 0xffffff);
-        startY += font.lineHeight + 5;
+        final int startX = 10, startY = 10;
+        int x = startX, y = startY;
+        int maxX = x;
+
+        final List<Runnable> renderingQueue = new ArrayList<>();
+        final Component title = Component.literal("Tests overlay for ").append(Component.literal(impl.id().toString()).withStyle(ChatFormatting.AQUA));
+        renderingQueue.add(() ->  Screen.drawString(poseStack, font, title, x, x, 0xffffff));
+        y += font.lineHeight + 5;
+        maxX += font.width(title);
 
         if (enabled.size() > MAX_DISPLAYED) {
             // In this case, we only render the first 5 which are NOT passed
@@ -81,19 +89,21 @@ public final class TestsOverlay implements IGuiOverlay {
                         continue; // We don't need to render this one anymore, hurray!
                     }
 
-                    // TODO - figure out why fading doesn't work
-                    final float[] oldColour = RenderSystem.getShaderColor();
-                    RenderSystem.enableBlend();
-                    RenderSystem.defaultBlendFunc();
-                    RenderSystem.setShaderColor(1f, 1f, 1f, fade);
+                    renderingQueue.add(() -> {
+                        RenderSystem.enableBlend();
+                        RenderSystem.defaultBlendFunc();
+                    });
 
-                    startY = renderTest(gui, font, test, poseStack, startX, startY, ((int)(fade * 255f) << 24) | 0xffffff) + 5;
+                    final XY xy = renderTest(gui, font, test, poseStack, x, y, ((int)(fade * 255f) << 24) | 0xffffff, renderingQueue);
+                    y = xy.y() + 5;
+                    maxX = Math.max(maxX, xy.x());
 
-                    RenderSystem.disableBlend();
-                    RenderSystem.setShaderColor(oldColour[0], oldColour[1], oldColour[2], oldColour[3]);
+                    renderingQueue.add(RenderSystem::disableBlend);
                     fading.put(test, fade);
                 } else {
-                    startY = renderTest(gui, font, test, poseStack, startX, startY, 0xffffff) + 5;
+                    final XY xy = renderTest(gui, font, test, poseStack, x, y, 0xffffff, renderingQueue);
+                    y = xy.y() + 5;
+                    maxX = Math.max(maxX, xy.x());
                 }
             }
 
@@ -101,11 +111,28 @@ public final class TestsOverlay implements IGuiOverlay {
             lastRenderedTests.addAll(actuallyToRender);
         } else {
             for (final Test test : enabled) {
-                startY = renderTest(gui, font, test, poseStack, startX, startY, 0xffffff) + 5;
+                final XY xy = renderTest(gui, font, test, poseStack, x, y, 0xffffff, renderingQueue);
+                y = xy.y() + 5;
+                maxX = Math.max(maxX, xy.x());
             }
             lastRenderedTests.clear();
             lastRenderedTests.addAll(enabled);
         }
+
+        maxX += 3;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        // final float[] oldColour = RenderSystem.getShaderColor();
+        // RenderSystem.setShaderColor(1f, 1f, 1f, 0f);
+        // RenderSystem.setShaderTexture(0, BG_TEXTURE);
+
+        renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4 + 4, 4, 4, 256, 256);
+
+        RenderSystem.disableBlend();
+        // RenderSystem.setShaderColor(oldColour[0], oldColour[1], oldColour[2], oldColour[3]);
+
+        renderingQueue.forEach(Runnable::run);
     }
 
     private static final Map<Test.Result, ResourceLocation> ICON_BY_RESULT = new EnumMap<>(Map.of(
@@ -114,17 +141,20 @@ public final class TestsOverlay implements IGuiOverlay {
             Test.Result.NOT_PROCESSED, new ResourceLocation("testframework", "textures/gui/test_not_processed.png")
     ));
 
-    private int renderTest(ForgeGui gui, Font font, Test test, PoseStack stack, int x, int y, int colour) {
+    // TODO - maybe "group" together tests in the same group?
+    private XY renderTest(ForgeGui gui, Font font, Test test, PoseStack stack, int x, int y, int colour, List<Runnable> rendering) {
         final FormattedCharSequence bullet = Component.literal("• ").withStyle(ChatFormatting.BLACK).getVisualOrderText();
-        Screen.drawString(stack, font, bullet, x, y - 1, colour);
+        rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, bullet, x$, y$ - 1, colour)));
         x += font.width(bullet) + 1;
 
-        RenderSystem.setShaderTexture(0, ICON_BY_RESULT.get(test.status().result()));
-        GuiComponent.blit(stack, x, y, 0, 0, 9, 9, 9, 9);
+        rendering.add(withXY(x, y, (x$, y$) -> {
+            RenderSystem.setShaderTexture(0, ICON_BY_RESULT.get(test.status().result()));
+            GuiComponent.blit(stack, x$, y$, 0, 0, 9, 9, 9, 9);
+        }));
         x += 11;
 
         final Component title = statusColoured(test.visuals().title(), test.status()).append(":");
-        Screen.drawString(stack, font, title, x, y, colour);
+        rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, title, x$, y$, colour)));
 
         final List<Component> extras = new ArrayList<>();
         if (Screen.hasShiftDown()) extras.addAll(test.visuals().description());
@@ -132,16 +162,36 @@ public final class TestsOverlay implements IGuiOverlay {
             extras.add(Component.literal("!!! " + test.status().message()).withStyle(ChatFormatting.RED));
         }
 
+        int maxX = x;
         y += font.lineHeight + 2;
         if (!extras.isEmpty()) {
             x += 6;
             for (final Component extra : extras) {
-                Screen.drawString(stack, font, extra, x, y, 0xffffff);
+                rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, extra, x$, y$, 0xffffff)));
                 y += font.lineHeight;
+                maxX = Math.max(maxX, x + font.width(extra));
             }
         }
-        return y;
+        return new XY(maxX, y);
     }
+
+    private record XY(int x, int y) {}
+
+    private Runnable withXY(int x, int y, IntBiConsumer consumer) {
+        return () -> consumer.accept(x, y);
+    }
+
+    /* TODO private List<Component> splitIfTooLong(Font font, Component component, int maxWidth) {
+        final int width = font.width(component);
+        if (width > maxWidth) {
+            return component.visit((style, text) -> {
+                final List<Component> lines = new ArrayList<>();
+                final int lastSpace = text.lastIndexOf(" ");
+                return java.util.Optional.of(lines);
+            }, component.getStyle()).orElseThrow();
+        }
+        return List.of(component);
+    } */
 
     private MutableComponent statusColoured(Component input, Test.Status status) {
         return switch (status.result()) {
@@ -149,5 +199,80 @@ public final class TestsOverlay implements IGuiOverlay {
             case FAILED -> input.copy().withStyle(ChatFormatting.RED);
             case NOT_PROCESSED -> input.copy();
         };
+    }
+
+    private static void renderTilledTexture(PoseStack pose, ResourceLocation texture, int x, int y, int width, int height, int borderWidth, int borderHeight, int textureWidth, int textureHeight) {
+        final var sideWidth = Math.min(borderWidth, width / 2);
+        final var sideHeight = Math.min(borderHeight, height / 2);
+
+        final var leftWidth = sideWidth < borderWidth ? sideWidth + (width % 2) : sideWidth;
+        final var topHeight = sideHeight < borderHeight ? sideHeight + (height % 2) : sideHeight;
+
+        // Calculate texture centre
+        final int textureCentreWidth = textureWidth - borderWidth * 2,
+                textureCenterHeight = textureHeight - borderHeight * 2;
+        final int centreWidth = width - leftWidth - sideWidth,
+                centerHeight = height - topHeight - sideHeight;
+
+        // Calculate the corner positions
+        final var leftEdgeEnd = x + leftWidth;
+        final var rightEdgeStart = leftEdgeEnd + centreWidth;
+        final var topEdgeEnd = y + topHeight;
+        final var bottomEdgeStart = topEdgeEnd + centerHeight;
+        RenderSystem.setShaderTexture(0, texture);
+
+        // Top Left Corner
+        Screen.blit(pose, x, y, 0, 0, leftWidth, topHeight, textureWidth, textureHeight);
+        // Bottom Left Corner
+        Screen.blit(pose, x, bottomEdgeStart, 0, textureHeight - sideHeight, leftWidth, sideHeight, textureWidth, textureHeight);
+
+        // Render the Middle
+        if (centreWidth > 0) {
+            // Top Middle
+            blitTiled(pose, leftEdgeEnd, y, centreWidth, topHeight, borderWidth, 0, textureCentreWidth, borderHeight, textureWidth, textureHeight);
+            if (centerHeight > 0) {
+                // Centre
+                blitTiled(pose, leftEdgeEnd, topEdgeEnd, centreWidth, centerHeight, borderWidth, borderHeight, textureCentreWidth, textureCenterHeight, textureWidth, textureHeight);
+            }
+            // Bottom Middle
+            blitTiled(pose, leftEdgeEnd, bottomEdgeStart, centreWidth, sideHeight, borderWidth, textureHeight - sideHeight, textureCentreWidth, borderHeight, textureWidth, textureHeight);
+        }
+
+        if (centerHeight > 0) {
+            // Left Middle
+            blitTiled(pose, x, topEdgeEnd, leftWidth, centerHeight, 0, borderHeight, borderWidth, textureCenterHeight, textureWidth, textureHeight);
+            // Right Middle
+            blitTiled(pose, rightEdgeStart, topEdgeEnd, sideWidth, centerHeight, textureWidth - sideWidth, borderHeight, borderWidth, textureCenterHeight, textureWidth, textureHeight);
+        }
+
+        // Top Right Corner
+        Screen.blit(pose, rightEdgeStart, y, textureWidth - sideWidth, 0, sideWidth, topHeight, textureWidth, textureHeight);
+        // Bottom Right Corner
+        Screen.blit(pose, rightEdgeStart, bottomEdgeStart, textureWidth - sideWidth, textureHeight - sideHeight, sideWidth, sideHeight, textureWidth, textureHeight);
+    }
+
+    private static void blitTiled(PoseStack pose, int x, int y, int width, int height, int u, int v, int textureDrawWidth, int textureDrawHeight, int textureWidth, int textureHeight) {
+        // Calculate the amount of tiles
+        final int xTiles = (int) Math.ceil((float) width / textureDrawWidth),
+                yTiles = (int) Math.ceil((float) height / textureDrawHeight);
+
+        var drawWidth = width;
+        var drawHeight = height;
+        for (var tileX = 0; tileX < xTiles; tileX++) {
+            for (var tileY = 0; tileY < yTiles; tileY++) {
+                final var renderWidth = Math.min(drawWidth, textureDrawWidth);
+                final var renderHeight = Math.min(drawHeight, textureDrawHeight);
+                Screen.blit(pose, x + textureDrawWidth * tileX, y + textureDrawHeight * tileY, u, v, renderWidth, renderHeight, textureWidth, textureHeight);
+                // We rendered a tile
+                drawHeight -= textureDrawHeight;
+            }
+            drawWidth -= textureDrawWidth;
+            drawHeight = height;
+        }
+    }
+
+    @FunctionalInterface
+    public interface IntBiConsumer {
+        void accept(int x, int y);
     }
 }

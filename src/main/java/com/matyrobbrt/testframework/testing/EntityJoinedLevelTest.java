@@ -10,7 +10,9 @@ import net.minecraftforge.fml.common.Mod;
 @TestHolder(
         value = "entity_join_level",
         title = "Entity Join Level",
-        description = "Tests if the EntityJoinLevelEvent will be fired, on the client, when a bee is spawned."
+        description = "Tests if the EntityJoinLevelEvent will be fired, on the client, when a bee is spawned.",
+        enabledByDefault = true,
+        groups = "events.entity"
 )
 public class EntityJoinedLevelTest extends AbstractTest {
     @Override

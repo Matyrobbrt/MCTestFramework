@@ -22,7 +22,7 @@ public record ChangeStatusPacket(TestFrameworkImpl framework, String testId, Tes
             case PLAY_TO_CLIENT -> framework.tests().byId(testId).orElseThrow().setStatus(status);
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
-                if (Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
+                if (framework.configuration.modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
                     framework.changeStatus(
                             framework.tests().byId(testId).orElseThrow(),
                             status, player

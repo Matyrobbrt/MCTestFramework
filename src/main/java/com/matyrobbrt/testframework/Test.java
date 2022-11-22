@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 public interface Test {
     String id();
+    List<String> groups();
 
     boolean enabledByDefault();
     void onEnabled(EventListenerCollector eventListenerCollector);
@@ -38,7 +39,11 @@ public interface Test {
 
     record Status(Result result, String message) {}
     enum Result {
-        PASSED, FAILED, NOT_PROCESSED
+        PASSED, FAILED, NOT_PROCESSED;
+
+        public boolean passed() {
+            return this == PASSED;
+        }
     }
 
     record Visuals(Component title, List<Component> description) {}
