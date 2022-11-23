@@ -1,6 +1,7 @@
-package com.matyrobbrt.testframework.impl;
+package com.matyrobbrt.testframework.client;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
@@ -56,13 +57,14 @@ public final class TestsOverlay implements IGuiOverlay {
 
         final List<Runnable> renderingQueue = new ArrayList<>();
         final Component title = Component.literal("Tests overlay for ").append(Component.literal(impl.id().toString()).withStyle(ChatFormatting.AQUA));
-        renderingQueue.add(() ->  Screen.drawString(poseStack, font, title, x, x, 0xffffff));
+        renderingQueue.add(withXY(x, y, (x$, y$) ->  Screen.drawString(poseStack, font, title, x$, y$, 0xffffff)));
         y += font.lineHeight + 5;
         maxX += font.width(title);
 
         if (enabled.size() > MAX_DISPLAYED) {
             // In this case, we only render the first 5 which are NOT passed
             // But keeping the last completed ones, if present, and fading them out
+            // TODO - may need to tweak this logic to only fade ONLY IF the amount of tests not passed is >= 5
             final Map<Test, Integer> lastCompleted = lastRenderedTests.stream()
                     .filter(it -> it.status().result() == Test.Result.PASSED)
                     .collect(Collectors.toMap(Function.identity(), lastRenderedTests::indexOf));
@@ -128,7 +130,7 @@ public final class TestsOverlay implements IGuiOverlay {
         // RenderSystem.setShaderColor(1f, 1f, 1f, 0f);
         // RenderSystem.setShaderTexture(0, BG_TEXTURE);
 
-        renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4 + 4, 4, 4, 256, 256);
+        renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4, 4, 4, 256, 256);
 
         RenderSystem.disableBlend();
         // RenderSystem.setShaderColor(oldColour[0], oldColour[1], oldColour[2], oldColour[3]);
@@ -136,7 +138,7 @@ public final class TestsOverlay implements IGuiOverlay {
         renderingQueue.forEach(Runnable::run);
     }
 
-    private static final Map<Test.Result, ResourceLocation> ICON_BY_RESULT = new EnumMap<>(Map.of(
+    static final Map<Test.Result, ResourceLocation> ICON_BY_RESULT = new EnumMap<>(Map.of(
             Test.Result.FAILED, new ResourceLocation("testframework", "textures/gui/test_failed.png"),
             Test.Result.PASSED, new ResourceLocation("testframework", "textures/gui/test_passed.png"),
             Test.Result.NOT_PROCESSED, new ResourceLocation("testframework", "textures/gui/test_not_processed.png")
@@ -182,7 +184,7 @@ public final class TestsOverlay implements IGuiOverlay {
         return () -> consumer.accept(x, y);
     }
 
-    private MutableComponent statusColoured(Component input, Test.Status status) {
+    static MutableComponent statusColoured(Component input, Test.Status status) {
         return switch (status.result()) {
             case PASSED -> input.copy().withStyle(ChatFormatting.GREEN);
             case FAILED -> input.copy().withStyle(ChatFormatting.RED);

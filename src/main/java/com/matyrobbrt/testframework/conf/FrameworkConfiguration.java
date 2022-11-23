@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.conf;
 import com.matyrobbrt.testframework.Test;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -13,12 +14,13 @@ import org.objectweb.asm.Type;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public record FrameworkConfiguration(
         ResourceLocation id, boolean clientSynced, boolean modifiableByClients, int commandRequiredPermission,
         SimpleChannel networkingChannel, List<String> enabledTests, @Nullable Supplier<ClientConfiguration> clientConfiguration,
-        TestCollector testCollector
+        TestCollector testCollector, @Nullable GroupNameCollector<?> groupNameCollector
 ) {
     public static Builder builder(ResourceLocation id) {
         return new Builder(id);
@@ -32,6 +34,7 @@ public record FrameworkConfiguration(
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
         private TestCollector testCollector = cnt -> List.of();
+        private @Nullable GroupNameCollector<?> groupNameCollector;
 
         private @Nullable Supplier<ClientConfiguration> clientConfiguration;
 
@@ -73,6 +76,11 @@ public record FrameworkConfiguration(
             return this;
         }
 
+        public <T extends Annotation> Builder groupNameCollector(Class<T> annotation, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault) {
+            this.groupNameCollector = new GroupNameCollector<>(annotation, Type.getType(annotation), nameGetter, isEnabledByDefault);
+            return this;
+        }
+
         public FrameworkConfiguration build() {
             final SimpleChannel channel = networkingChannel == null ?
                     NetworkRegistry.ChannelBuilder.named(id)
@@ -82,7 +90,7 @@ public record FrameworkConfiguration(
                             .simpleChannel() : networkingChannel;
             return new FrameworkConfiguration(
                     id, clientSynced, modifiableByClients, commandRequiredPermission,
-                    channel, enabledTests, clientConfiguration, testCollector
+                    channel, enabledTests, clientConfiguration, testCollector, groupNameCollector
             );
         }
     }
@@ -99,6 +107,17 @@ public record FrameworkConfiguration(
                         final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
                         return (Test) clazz.getDeclaredConstructor().newInstance();
                     })).toList();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public record GroupNameCollector<T extends Annotation>(Class<T> annotation, Type asmType, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault) {
+        public Component getName(Object o) {
+            return nameGetter.apply((T) o);
+        }
+
+        public boolean isEnabledByDefault(Object o) {
+            return isEnabledByDefault.apply((T) o);
         }
     }
 }

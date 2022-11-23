@@ -1,9 +1,9 @@
 package com.matyrobbrt.testframework.testing;
 
-import com.matyrobbrt.testframework.TestHolder;
+import com.matyrobbrt.testframework.ExampleMod;
+import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.AbstractTest;
 import net.minecraft.world.entity.animal.Bee;
-import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -11,8 +11,7 @@ import net.minecraftforge.fml.common.Mod;
         value = "entity_join_level",
         title = "Entity Join Level",
         description = "Tests if the EntityJoinLevelEvent will be fired, on the client, when a bee is spawned.",
-        enabledByDefault = true,
-        groups = "events.entity"
+        groups = {ExampleMod.ENTITY_EVENTS, ExampleMod.LEVEL_RELATED_EVENTS}
 )
 public class EntityJoinedLevelTest extends AbstractTest {
     @Override

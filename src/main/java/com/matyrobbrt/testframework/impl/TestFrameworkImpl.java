@@ -1,17 +1,21 @@
 package com.matyrobbrt.testframework.impl;
 
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimaps;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
+import com.matyrobbrt.testframework.client.GroupTestsScreen;
+import com.matyrobbrt.testframework.client.TestsOverlay;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
 import com.matyrobbrt.testframework.impl.packet.ChangeStatusPacket;
 import com.matyrobbrt.testframework.impl.packet.TFPacket;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.ToggleKeyMapping;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
@@ -24,7 +28,6 @@ import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -44,10 +47,12 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,14 +65,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static net.minecraft.commands.Commands.*;
 
-// TODO - logging
 public class TestFrameworkImpl implements TestFramework {
     public final FrameworkConfiguration configuration;
 
@@ -124,7 +130,7 @@ public class TestFrameworkImpl implements TestFramework {
                                 final String id = StringArgumentType.getString(ctx, "id");
                                 if (id.startsWith("g:")) {
                                     final String groupId = id.substring(2);
-                                    final List<Test> group = tests.getOrCreateGroup(groupId);
+                                    final List<Test> group = tests.getOrCreateGroup(groupId).resolveAll();
                                     if (group.isEmpty()) {
                                         ctx.getSource().sendFailure(Component.literal("Unknown test group with id '%s'!".formatted(groupId)));
                                         return Command.SINGLE_SUCCESS;
@@ -160,12 +166,28 @@ public class TestFrameworkImpl implements TestFramework {
         final List<Test> collected = collectTests(container);
         logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
         collected.forEach(tests()::register);
+        collectGroupNames(container);
 
         modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
 
         if (FMLLoader.getDist().isClient()) {
             setupClient(this, modBus);
         }
+    }
+
+    private void collectGroupNames(ModContainer container) {
+        if (configuration.groupNameCollector() == null) return;
+        container.getModInfo().getOwningFile().getFile().getScanResult()
+                .getAnnotations().stream().filter(it -> configuration.groupNameCollector().asmType().equals(it.annotationType()))
+                .forEach(LamdbaExceptionUtils.rethrowConsumer(annotationData -> {
+                    final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
+                    final Field field = clazz.getDeclaredField(annotationData.memberName());
+                    final String groupId = (String)field.get(null);
+                    final Annotation annotation = field.getAnnotation(configuration.groupNameCollector().annotation());
+                    final Group group = tests().getOrCreateGroup(groupId);
+                    group.setTitle(configuration.groupNameCollector().getName(annotation));
+                    group.setEnabledByDefault(configuration.groupNameCollector().isEnabledByDefault(annotation));
+                }));
     }
 
     private static void setupClient(TestFrameworkImpl impl, IEventBus modBus) {
@@ -242,6 +264,8 @@ public class TestFrameworkImpl implements TestFramework {
 
     @Override
     public void changeStatus(Test test, Test.Status newStatus, @Nullable Entity changer) {
+        if (test.status().equals(newStatus)) return; // If the status is the same, don't waste power
+
         test.setStatus(newStatus);
 
         logger.info("Status of test '{}' has had status changed to {}{}.", test.id(), newStatus, changer instanceof Player player ? " by " + player.getGameProfile().getName() : "");
@@ -256,6 +280,8 @@ public class TestFrameworkImpl implements TestFramework {
 
     @Override
     public void setEnabled(Test test, boolean enabled, @Nullable Entity changer) {
+        if (tests.isEnabled(test.id()) == enabled) return; // If the status is the same, don't waste power
+
         if (!(FMLLoader.getDist().isClient() && server == null)) {
             if (enabled) {
                 tests.enable(test.id());
@@ -300,7 +326,7 @@ public class TestFrameworkImpl implements TestFramework {
 
         final RollingRandomAccessFileAppender appender = RollingRandomAccessFileAppender.newBuilder()
                 .setName("TestFramework " + id + " log")
-                .withFileName("logs/" + id.toString().replace(":", "_") + ".log")
+                .withFileName("logs/tests/" + id.toString().replace(":", "_") + ".log")
                 .withFilePattern("logs/%d{yyyy-MM-dd}-%i.log.gz")
                 .setLayout(PatternLayout.newBuilder()
                         .withPattern("[%d{ddMMMyyyy HH:mm:ss}] [%logger]: %minecraftFormatting{%msg}{strip}%n%xEx")
@@ -338,7 +364,7 @@ public class TestFrameworkImpl implements TestFramework {
 
     public final class TestsImpl implements Tests {
         private final Map<String, Test> tests = Collections.synchronizedMap(new HashMap<>());
-        private final ListMultimap<String, Test> groups = Multimaps.synchronizedListMultimap(Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new));
+        private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, EventListenerCollectorImpl> collectors = new HashMap<>();
         public final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
 
@@ -350,9 +376,20 @@ public class TestFrameworkImpl implements TestFramework {
         }
 
         @Override
-        public List<Test> getOrCreateGroup(String id) {
+        public Group getOrCreateGroup(String id) {
             synchronized (groups) {
-                return groups.get(id);
+                @Nullable Group group = groups.get(id);
+                if (group != null) return group;
+                group = addGroupToParents(new Group(id, new CopyOnWriteArrayList<>()));
+                groups.put(id, group);
+                return group;
+            }
+        }
+
+        @Override
+        public Collection<Group> allGroups() {
+            synchronized (groups) {
+                return groups.values();
             }
         }
 
@@ -389,9 +426,24 @@ public class TestFrameworkImpl implements TestFramework {
                 tests.put(test.id(), test);
             }
             synchronized (groups) {
-                test.groups().forEach(group -> groups.put(group, test));
+                if (test.groups().isEmpty()) {
+                    getOrCreateGroup("ungrouped").add(test);
+                } else {
+                    test.groups().forEach(group -> getOrCreateGroup(group).add(test));
+                }
             }
             test.init(TestFrameworkImpl.this);
+        }
+
+        private Group addGroupToParents(Group group) {
+            synchronized (groups) {
+                final List<String> splitOnDot = List.of(group.id().split("\\."));
+                if (splitOnDot.size() >= 2) {
+                    final Group parent = getOrCreateGroup(String.join(".", splitOnDot.subList(0, splitOnDot.size() - 1)));
+                    parent.add(group);
+                }
+            }
+            return group;
         }
 
         @Override
@@ -411,18 +463,23 @@ public class TestFrameworkImpl implements TestFramework {
             Predicate<Test> isEnabledByDefault = Test::enabledByDefault;
 
             final Set<String> enabledTests = new HashSet<>(configuration.enabledTests());
-            final Set<String> enabledGroups = new HashSet<>();
+            final Set<Group> enabledGroups = new HashSet<>();
             final Iterator<String> etestsItr = enabledTests.iterator();
             while (etestsItr.hasNext()) {
                 final String next = etestsItr.next();
                 if (next.startsWith("g:")) {
-                    enabledGroups.add(next.substring(2));
+                    enabledGroups.add(getOrCreateGroup(next.substring(2)));
                     etestsItr.remove();
                 }
             }
 
+            synchronized (groups) {
+                enabledGroups.addAll(groups.values().stream().filter(Group::isEnabledByDefault).toList());
+            }
+            final Set<Test> groupTestsEnabledByDefault = enabledGroups.stream().flatMap(it -> it.resolveAll().stream()).collect(Collectors.toSet());
+
             isEnabledByDefault = isEnabledByDefault.or(it -> enabledTests.contains(it.id()));
-            isEnabledByDefault = isEnabledByDefault.or(it -> it.groups().stream().anyMatch(enabledGroups::contains));
+            isEnabledByDefault = isEnabledByDefault.or(groupTestsEnabledByDefault::contains);
 
             synchronized (tests) {
                 for (final Test test : tests.values()) {
@@ -445,9 +502,11 @@ public class TestFrameworkImpl implements TestFramework {
         }
 
         public void init(IEventBus modBus) {
+            final String keyCategory = "key.categories." + impl.id.getNamespace() + "." + impl.id.getPath();
+
             final BooleanSupplier overlayEnabled;
             if (configuration.toggleOverlayKey() != 0) {
-                final ToggleKeyMapping overlayKey = new ToggleKeyMapping("key.testframework.toggleoverlay", configuration.toggleOverlayKey(), "key.categories." + impl.id.getNamespace() + "." + impl.id.getPath(), () -> true);
+                final ToggleKeyMapping overlayKey = new ToggleKeyMapping("key.testframework.toggleoverlay", configuration.toggleOverlayKey(), keyCategory, () -> true);
                 modBus.addListener((final RegisterKeyMappingsEvent event) -> event.register(overlayKey));
                 overlayEnabled = () -> !overlayKey.isDown();
             } else {
@@ -455,6 +514,21 @@ public class TestFrameworkImpl implements TestFramework {
             }
 
             modBus.addListener((final RegisterGuiOverlaysEvent event) -> event.registerAboveAll(impl.id.getPath(), new TestsOverlay(impl, overlayEnabled)));
+
+            if (configuration.openManagerKey() != 0) {
+                final KeyMapping openManagerKey = new KeyMapping("key.testframework.openmanager", configuration.openManagerKey(), keyCategory) {
+                    @Override
+                    public void setDown(boolean pValue) {
+                        if (pValue) {
+                            Minecraft.getInstance().setScreen(new GroupTestsScreen(
+                                    Component.literal("All tests"), impl, List.copyOf(impl.tests().allGroups())
+                            ));
+                        }
+                        super.setDown(pValue);
+                    }
+                };
+                modBus.addListener((final RegisterKeyMappingsEvent event) -> event.register(openManagerKey));
+            }
         }
     }
 }

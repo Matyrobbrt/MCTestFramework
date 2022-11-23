@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.impl;
 
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
-import com.matyrobbrt.testframework.TestHolder;
+import com.matyrobbrt.testframework.annotation.TestHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;

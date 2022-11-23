@@ -1,5 +1,6 @@
 package com.matyrobbrt.testframework;
 
+import com.matyrobbrt.testframework.group.Groupable;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -8,7 +9,7 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.List;
 import java.util.function.Consumer;
 
-public interface Test {
+public interface Test extends Groupable {
     String id();
     List<String> groups();
 
@@ -24,6 +25,11 @@ public interface Test {
 
     Visuals visuals();
 
+    @Override
+    default List<Test> resolveAll() {
+        return List.of(this);
+    }
+
     interface EventListenerCollector {
         ListenerAcceptor getFor(Mod.EventBusSubscriber.Bus bus);
 
@@ -37,7 +43,16 @@ public interface Test {
         }
     }
 
-    record Status(Result result, String message) {}
+    record Status(Result result, String message) {
+        @Override
+        public String toString() {
+            if (message.isBlank()) {
+                return "[result=" + result + "]";
+            } else {
+                return "[result=" + result + ",message=" + message + "]";
+            }
+        }
+    }
     enum Result {
         PASSED, FAILED, NOT_PROCESSED;
 

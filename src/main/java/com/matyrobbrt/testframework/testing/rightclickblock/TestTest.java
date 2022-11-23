@@ -1,7 +1,7 @@
 package com.matyrobbrt.testframework.testing.rightclickblock;
 
 import com.matyrobbrt.testframework.impl.AbstractTest;
-import com.matyrobbrt.testframework.TestHolder;
+import com.matyrobbrt.testframework.annotation.TestHolder;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
