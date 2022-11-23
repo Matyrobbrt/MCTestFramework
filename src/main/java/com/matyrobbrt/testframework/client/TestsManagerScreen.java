@@ -5,7 +5,6 @@ import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -14,12 +13,10 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -37,9 +34,9 @@ import java.util.stream.Stream;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public abstract class TestsScreen extends Screen {
-    private final TestFrameworkImpl framework;
-    public TestsScreen(Component title, TestFrameworkImpl framework) {
+public abstract class TestsManagerScreen extends Screen {
+    protected final TestFrameworkImpl framework;
+    public TestsManagerScreen(Component title, TestFrameworkImpl framework) {
         super(title);
         this.framework = framework;
     }
@@ -144,7 +141,9 @@ public abstract class TestsScreen extends Screen {
                 final float alpha = .45f;
                 final boolean renderTransparent = !isEnabled();
                 RenderSystem.setShaderTexture(0, TestsOverlay.ICON_BY_RESULT.get(test.status().result()));
-                TestsScreen.blitAlpha(pPoseStack, pLeft, pTop, 0, 0, 9, 9, 9, 9, renderTransparent ? alpha : 1f);
+                if (renderTransparent) RenderSystem.enableBlend();
+                TestsManagerScreen.blitAlpha(pPoseStack, pLeft, pTop, 0, 0, 9, 9, 9, 9, renderTransparent ? alpha : 1f);
+                if (renderTransparent) RenderSystem.disableBlend();
                 final Component title = TestsOverlay.statusColoured(test.visuals().title(), test.status());
                 Screen.drawString(pPoseStack, font, title, pLeft + 11, pTop, renderTransparent ? ((((int) (alpha * 255f)) << 24) | 0xffffff0) : 0xffffff);
             }
@@ -216,19 +215,19 @@ public abstract class TestsScreen extends Screen {
             @Override
             public boolean mouseClicked(double pMouseX, double pMouseY, int pButton) {
                 if (pButton == GLFW.GLFW_MOUSE_BUTTON_LEFT && (Screen.hasShiftDown() || Screen.hasControlDown())) {
-                    Minecraft.getInstance().pushGuiLayer(new GroupTestsScreen(
+                    Minecraft.getInstance().pushGuiLayer(new GroupTestsManagerScreen(
                             Component.literal("Tests of group ").append(getTitle()),
                             framework, List.of(group)
                     ) {
                         @Override
                         protected void init() {
                             super.init();
-                            showGroups.visible = false;
-                            showGroups.active = false;
-                            showGroups.setValue(false);
+                            showAsGroup.visible = false;
+                            showAsGroup.active = false;
+                            showAsGroup.setValue(false);
                             groupableList.resetRows("");
 
-                            addRenderableWidget(new Button(this.width - 6 - 60, this.height - 29, 60, 20, CommonComponents.GUI_BACK, (p_97691_) -> this.onClose()));
+                            addRenderableWidget(new Button(this.width - 20 - 60, this.height - 29, 60, 20, CommonComponents.GUI_BACK, (p_97691_) -> this.onClose()));
                         }
                     });
                     return false;

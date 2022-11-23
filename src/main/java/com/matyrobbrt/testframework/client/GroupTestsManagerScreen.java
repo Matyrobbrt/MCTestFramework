@@ -15,33 +15,39 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class GroupTestsScreen extends TestsScreen {
+public class GroupTestsManagerScreen extends TestsManagerScreen {
     protected FocusedEditBox activeTextField;
     protected FocusedEditBox searchTextField;
 
     private final List<Group> groups;
     protected GroupableList groupableList;
     private Consumer<String> suggestionProvider;
-    protected CycleButton<Boolean> showGroups;
+    protected CycleButton<Boolean> showAsGroup;
+    protected CycleButton<FilterMode> filterMode;
 
-    public GroupTestsScreen(Component title, TestFrameworkImpl framework, List<Group> groups) {
+    public GroupTestsManagerScreen(Component title, TestFrameworkImpl framework, List<Group> groups) {
         super(title, framework);
         this.groups = groups;
     }
 
     @Override
     protected void init() {
-        this.showGroups = addRenderableWidget(CycleButton.booleanBuilder(Component.literal("Show groups"),
+        final Runnable reloader = () -> groupableList.resetRows(searchTextField.getValue());
+        this.showAsGroup = addRenderableWidget(CycleButton.booleanBuilder(Component.literal("Show groups"),
                 Component.literal("Show all tests"))
-                .displayOnlyValue().create(20, this.height - 26, 100, 20, Component.empty(), (pCycleButton, pValue) -> groupableList.resetRows(searchTextField.getValue())));
+                .displayOnlyValue().create(20, this.height - 26, 100, 20, Component.empty(), (pCycleButton, pValue) -> reloader.run()));
+        this.filterMode = addRenderableWidget(CycleButton.<FilterMode>builder(mode -> mode.name)
+                .withValues(FilterMode.values()).create((this.width - 160) / 2 , this.height - 26, 150, 20, Component.literal("Filter"), (pCycleButton, pValue) -> reloader.run()));
 
         final List<Test> tests = groups.stream().flatMap(it -> it.resolveAll().stream()).distinct().toList();
-        this.groupableList = new GroupableList(() -> showGroups.getValue(), groups, tests::stream, minecraft, width, height, 50, height - 36, 9 + 2 + 2 + 2);
+        this.groupableList = new GroupableList(() -> showAsGroup.getValue(), groups, () -> tests.stream()
+                .filter(test -> filterMode.getValue().test(framework, test)), minecraft, width, height, 50, height - 36, 9 + 2 + 2 + 2);
         this.suggestionProvider = s -> {
-            if (showGroups.getValue()) {
+            if (showAsGroup.getValue()) {
                 updateSearchTextFieldSuggestion(this.searchTextField, s, groups, gr -> gr.title().getString());
             } else {
                 updateSearchTextFieldSuggestion(this.searchTextField, s, tests, test -> test.visuals().title().getString());
@@ -79,9 +85,19 @@ public class GroupTestsScreen extends TestsScreen {
 
     @Override
     public void render(@NotNull PoseStack pPoseStack, int pMouseX, int pMouseY, float pPartialTick) {
+        if (showAsGroup.getValue()) {
+            filterMode.visible = false;
+            filterMode.active = false;
+        } else {
+            filterMode.visible = true;
+            filterMode.active = true;
+        }
+
         groupableList.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
         super.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
         searchTextField.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
+
+        drawCenteredString(pPoseStack, font, getTitle(), this.width / 2, 7, 0xffffff);
     }
 
     protected class FocusedEditBox extends EditBox {
@@ -93,10 +109,10 @@ public class GroupTestsScreen extends TestsScreen {
         protected void onFocusedChanged(boolean focused) {
             super.onFocusedChanged(focused);
             if (focused) {
-                if (GroupTestsScreen.this.activeTextField != null && GroupTestsScreen.this.activeTextField != this) {
-                    GroupTestsScreen.this.activeTextField.setFocused(false);
+                if (GroupTestsManagerScreen.this.activeTextField != null && GroupTestsManagerScreen.this.activeTextField != this) {
+                    GroupTestsManagerScreen.this.activeTextField.setFocused(false);
                 }
-                GroupTestsScreen.this.activeTextField = this;
+                GroupTestsManagerScreen.this.activeTextField = this;
             }
         }
     }
@@ -113,6 +129,45 @@ public class GroupTestsScreen extends TestsScreen {
             }
         } else {
             editBox.setSuggestion("Search");
+        }
+    }
+
+    public enum FilterMode implements BiPredicate<TestFrameworkImpl, Test> {
+        ALL("All") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return true;
+            }
+        }, NOT_PROCESSED("Not Processed") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return test.status().result() == Test.Result.NOT_PROCESSED;
+            }
+        }, PASSED("Passed") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return test.status().result().passed();
+            }
+        }, FAILED("Failed") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return test.status().result() == Test.Result.FAILED;
+            }
+        }, ENABLED("Enabled") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return framework.tests().isEnabled(test.id());
+            }
+        }, DISABLED("Disabled") {
+            @Override
+            public boolean test(TestFrameworkImpl framework, Test test) {
+                return !framework.tests().isEnabled(test.id());
+            }
+        };
+        private Component name;
+
+        FilterMode(String name) {
+            this.name = Component.literal(name);
         }
     }
 }

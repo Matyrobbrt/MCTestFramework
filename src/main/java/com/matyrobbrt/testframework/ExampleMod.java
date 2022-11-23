@@ -19,6 +19,9 @@ import org.lwjgl.glfw.GLFW;
 
 @Mod("examplemod")
 public class ExampleMod {
+    @TestGroup(name = "Ungrouped")
+    public static final String UNGROUPED = "ungrouped";
+
     @TestGroup(name = "Events")
     public static final String EVENTS = "events";
     @TestGroup(name = "Entity Events")

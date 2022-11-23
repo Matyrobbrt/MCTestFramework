@@ -1,6 +1,6 @@
 package com.matyrobbrt.testframework.impl;
 
-import com.matyrobbrt.testframework.client.GroupTestsScreen;
+import com.matyrobbrt.testframework.client.GroupTestsManagerScreen;
 import com.matyrobbrt.testframework.client.TestsOverlay;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import net.minecraft.client.KeyMapping;
@@ -42,7 +42,7 @@ final class FrameworkImplClient {
                 @Override
                 public void setDown(boolean pValue) {
                     if (pValue) {
-                        Minecraft.getInstance().setScreen(new GroupTestsScreen(
+                        Minecraft.getInstance().setScreen(new GroupTestsManagerScreen(
                                 Component.literal("All tests"), impl, List.copyOf(impl.tests().allGroups())
                         ));
                     }
