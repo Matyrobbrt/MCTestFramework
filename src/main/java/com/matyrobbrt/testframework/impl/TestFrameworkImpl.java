@@ -2,9 +2,6 @@ package com.matyrobbrt.testframework.impl;
 
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
-import com.matyrobbrt.testframework.client.GroupTestsScreen;
-import com.matyrobbrt.testframework.client.TestsOverlay;
-import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
@@ -14,9 +11,6 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.ToggleKeyMapping;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -25,8 +19,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -47,7 +39,6 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +58,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
-import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -191,7 +181,7 @@ public class TestFrameworkImpl implements TestFramework {
     }
 
     private static void setupClient(TestFrameworkImpl impl, IEventBus modBus) {
-        if (impl.configuration.clientConfiguration() != null) new Client(impl, impl.configuration.clientConfiguration().get()).init(modBus);
+        if (impl.configuration.clientConfiguration() != null) new FrameworkImplClient(impl, impl.configuration.clientConfiguration().get()).init(modBus);
         MinecraftForge.EVENT_BUS.addListener((final ClientPlayerNetworkEvent.LoggingIn logOut) -> {
             synchronized (impl.tests().enabled) {
                 List.copyOf(impl.tests().enabled).forEach(impl.tests()::disable);
@@ -492,43 +482,4 @@ public class TestFrameworkImpl implements TestFramework {
         }
     }
 
-    public static final class Client {
-        private final TestFrameworkImpl impl;
-        private final ClientConfiguration configuration;
-
-        public Client(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
-            this.impl = impl;
-            this.configuration = clientConfiguration;
-        }
-
-        public void init(IEventBus modBus) {
-            final String keyCategory = "key.categories." + impl.id.getNamespace() + "." + impl.id.getPath();
-
-            final BooleanSupplier overlayEnabled;
-            if (configuration.toggleOverlayKey() != 0) {
-                final ToggleKeyMapping overlayKey = new ToggleKeyMapping("key.testframework.toggleoverlay", configuration.toggleOverlayKey(), keyCategory, () -> true);
-                modBus.addListener((final RegisterKeyMappingsEvent event) -> event.register(overlayKey));
-                overlayEnabled = () -> !overlayKey.isDown();
-            } else {
-                overlayEnabled = () -> true;
-            }
-
-            modBus.addListener((final RegisterGuiOverlaysEvent event) -> event.registerAboveAll(impl.id.getPath(), new TestsOverlay(impl, overlayEnabled)));
-
-            if (configuration.openManagerKey() != 0) {
-                final KeyMapping openManagerKey = new KeyMapping("key.testframework.openmanager", configuration.openManagerKey(), keyCategory) {
-                    @Override
-                    public void setDown(boolean pValue) {
-                        if (pValue) {
-                            Minecraft.getInstance().setScreen(new GroupTestsScreen(
-                                    Component.literal("All tests"), impl, List.copyOf(impl.tests().allGroups())
-                            ));
-                        }
-                        super.setDown(pValue);
-                    }
-                };
-                modBus.addListener((final RegisterKeyMappingsEvent event) -> event.register(openManagerKey));
-            }
-        }
-    }
 }
