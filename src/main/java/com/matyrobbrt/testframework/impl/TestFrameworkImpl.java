@@ -1,24 +1,31 @@
 package com.matyrobbrt.testframework.impl;
 
+import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.group.Group;
+import com.matyrobbrt.testframework.group.Groupable;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
 import com.matyrobbrt.testframework.impl.packet.ChangeStatusPacket;
 import com.matyrobbrt.testframework.impl.packet.TFPacket;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -28,6 +35,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
+import net.minecraftforge.server.command.EnumArgument;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -59,11 +67,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static net.minecraft.commands.Commands.*;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 @ApiStatus.Internal
 public class TestFrameworkImpl implements TestFrameworkInternal {
@@ -77,6 +87,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private final SimpleChannel channel;
 
     private @Nullable MinecraftServer server;
+
+    private String commandName;
 
     public TestFrameworkImpl(FrameworkConfiguration configuration) {
         this.configuration = configuration;
@@ -109,56 +121,173 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             });
             logger.info("Test Framework finished.");
         });
+
+        MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedOutEvent event) -> playerTestStore().put(event.getEntity().getUUID(), tests.tests.keySet()));
+        MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedInEvent event) -> {
+            final Set<String> lastTests = playerTestStore().getLast(event.getEntity().getUUID());
+            if (lastTests == null) return;
+
+            final Set<String> newTests = Sets.difference(tests.tests.keySet(), lastTests);
+            if (newTests.isEmpty()) return;
+
+            MutableComponent message = Component.literal("Welcome, ").append(event.getEntity().getName()).append("!")
+                    .append("\nThis server has the test framework enabled, so here are some of the tests that were added in your absence:\n");
+            final Iterator<Component> tests = newTests.stream()
+                    .limit(20)
+                    .flatMap(it -> tests().byId(it).stream())
+                    .<Component>map(it -> Component.literal("• ")
+                            .append(it.visuals().title()).append(" - ").append(tests().isEnabled(it.id()) ?
+                                    Component.literal("disable")
+                                            .withStyle(style -> style
+                                                    .withColor(ChatFormatting.RED).withBold(true)
+                                                    .withClickEvent(disableCommand(it.id()))) :
+                                    Component.literal("enable")
+                                            .withStyle(style -> style
+                                                    .withColor(ChatFormatting.GREEN).withBold(true)
+                                                    .withClickEvent(enableCommand(it.id())))
+                            )).iterator();
+            while (tests.hasNext()) {
+                final Component current = tests.next();
+                message = message.append(current);
+                if (tests.hasNext()) {
+                    message = message.append("\n");
+                }
+            }
+            event.getEntity().sendSystemMessage(message);
+        });
     }
 
     @Override
     public void registerCommands(LiteralArgumentBuilder<CommandSourceStack> node) {
+        commandName = node.getLiteral();
+
+        final class CommandHelper {
+            private <T> SuggestionProvider<T> suggestGroupable(Predicate<Groupable> predicate) {
+                return (context, builder) -> {
+                    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+                    Stream.concat(
+                                    tests.tests.values().stream(),
+                                    tests.groups.values().stream()
+                            )
+                            .filter(predicate)
+                            .map(groupable -> groupable instanceof Test test ? test.id() : "g:" + ((Group) groupable).id())
+                            .filter(it -> it.toLowerCase(Locale.ROOT).startsWith(remaining))
+                            .forEach(builder::suggest);
+                    return builder.buildFuture();
+                };
+            }
+
+            private <T> SuggestionProvider<T> suggestTest(Predicate<Test> predicate) {
+                return (context, builder) -> {
+                    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+                    tests.tests.values().stream()
+                            .filter(predicate)
+                            .map(Test::id)
+                            .filter(it -> it.toLowerCase(Locale.ROOT).startsWith(remaining))
+                            .forEach(builder::suggest);
+                    return builder.buildFuture();
+                };
+            }
+
+            private void parseGroupable(CommandSourceStack stack, String id, Consumer<Groupable> consumer) {
+                parseGroupable(stack, id, consumer::accept, consumer::accept);
+            }
+
+            private void parseGroupable(CommandSourceStack stack, String id, Consumer<Group> isGroup, Consumer<Test> isTest) {
+                if (id.startsWith("g:")) {
+                    final String grId = id.substring(2);
+                    tests.maybeGetGroup(grId).ifPresentOrElse(isGroup, () -> stack.sendFailure(Component.literal("Unknown test group with id '%s'!".formatted(grId))));
+                } else {
+                    tests.byId(id).ifPresentOrElse(isTest, () -> stack.sendFailure(Component.literal("Unknown test with id '%s'!".formatted(id))));
+                }
+            }
+
+            private Component formatStatus(Test.Status status) {
+                final MutableComponent resultComponent = Component.literal(status.result().toString()).withStyle(style -> style.withColor(status.result().getColour()));
+                if (status.message().isBlank()) {
+                    return resultComponent;
+                } else {
+                    return resultComponent.append(" - ").append(Component.literal(status.message()).withStyle(ChatFormatting.AQUA));
+                }
+            }
+
+            private int processSetStatus(CommandContext<CommandSourceStack> ctx, String message) {
+                final String id = StringArgumentType.getString(ctx, "id");
+                parseGroupable(ctx.getSource(), id,
+                        group -> ctx.getSource().sendFailure(Component.literal("This command does not support groups!")),
+                        test -> {
+                            final Test.Result result = ctx.getArgument("result", Test.Result.class);
+                            final Test.Status status = new Test.Status(result, message);
+                            changeStatus(test, status, ctx.getSource().getEntity());
+                            ctx.getSource().sendSuccess(
+                                    Component.literal("Status of test '").append(id).append("' has been changed to: ").append(formatStatus(status)), true
+                            );
+                        });
+                return Command.SINGLE_SUCCESS;
+            }
+        }
+
+        final CommandHelper helper = new CommandHelper();
         final BiFunction<LiteralArgumentBuilder<CommandSourceStack>, Boolean, LiteralArgumentBuilder<CommandSourceStack>> commandEnabling = (stack, enabling) ->
-                stack.requires(it -> it.hasPermission(LEVEL_GAMEMASTERS))
+                stack.requires(it -> it.hasPermission(configuration.commandRequiredPermission()))
                     .then(argument("id", StringArgumentType.greedyString())
-                            .suggests((context, builder) -> {
-                                String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-                                Stream.concat(
-                                        tests.tests.keySet().stream(),
-                                        tests.groups.keySet().stream().map(it -> "g:" + it)
-                                    )
-                                    .filter(it -> it.toLowerCase(Locale.ROOT).startsWith(remaining))
-                                    .filter(it -> tests.isEnabled(it) == !enabling)
-                                    .forEach(builder::suggest);
-                                return builder.buildFuture();
-                            })
+                            .suggests(helper.suggestGroupable(it -> !(it instanceof Test test) || tests.isEnabled(test.id())))
                             .executes(ctx -> {
                                 final String id = StringArgumentType.getString(ctx, "id");
-                                if (id.startsWith("g:")) {
-                                    final String groupId = id.substring(2);
-                                    final List<Test> group = tests.getOrCreateGroup(groupId).resolveAll();
-                                    if (group.isEmpty()) {
-                                        ctx.getSource().sendFailure(Component.literal("Unknown test group with id '%s'!".formatted(groupId)));
-                                        return Command.SINGLE_SUCCESS;
-                                    } else if (group.stream().allMatch(it -> tests.isEnabled(it.id()) == enabling)) {
+                                helper.parseGroupable(ctx.getSource(), id, group -> {
+                                    final List<Test> all = group.resolveAll();
+                                    if (all.stream().allMatch(it -> tests.isEnabled(it.id()) == enabling)) {
                                         ctx.getSource().sendFailure(Component.literal("All tests in group are " + (enabling ? "enabled" : "disabled") + "!"));
-                                        return Command.SINGLE_SUCCESS;
                                     } else {
-                                        group.forEach(test -> setEnabled(test, enabling, ctx.getSource().getEntity()));
+                                        all.forEach(test -> setEnabled(test, enabling, ctx.getSource().getEntity()));
                                         ctx.getSource().sendSuccess(Component.literal((enabling ? "Enabled" : "Disabled") + " test group!"), true);
-                                        return Command.SINGLE_SUCCESS;
                                     }
-                                } else {
-                                    if (tests.byId(id).isEmpty()) {
-                                        ctx.getSource().sendFailure(Component.literal("Unknown test with id '%s'!".formatted(id)));
-                                        return Command.SINGLE_SUCCESS;
-                                    }
+                                }, test -> {
                                     if (tests().isEnabled(id) == enabling) {
                                         ctx.getSource().sendFailure(Component.literal("Test is already " + (enabling ? "enabled" : "disabled") + "!"));
-                                        return Command.SINGLE_SUCCESS;
+                                    } else {
+                                        setEnabled(tests.tests.get(id), enabling, ctx.getSource().getEntity());
+                                        ctx.getSource().sendSuccess(Component.literal((enabling ? "Enabled" : "Disabled") + " test!"), true);
                                     }
-                                    setEnabled(tests.tests.get(id), enabling, ctx.getSource().getEntity());
-                                    ctx.getSource().sendSuccess(Component.literal((enabling ? "Enabled" : "Disabled") + " test!"), true);
-                                    return Command.SINGLE_SUCCESS;
-                                }
+                                });
+                                return Command.SINGLE_SUCCESS;
                             }));
+
         node.then(commandEnabling.apply(literal("enable"), true));
         node.then(commandEnabling.apply(literal("disable"), false));
+
+        node.then(literal("status")
+                .then(literal("get")
+                        .then(argument("id", StringArgumentType.greedyString())
+                                .suggests(helper.suggestTest(test -> tests.isEnabled(test.id())))
+                                .executes(ctx -> {
+                                    final String id = StringArgumentType.getString(ctx, "id");
+                                    helper.parseGroupable(ctx.getSource(), id,
+                                            group -> ctx.getSource().sendFailure(Component.literal("This command does not support groups!")),
+                                            test -> ctx.getSource().sendSuccess(
+                                                    Component.literal("Status of test '").append(id).append("' is: ").append(helper.formatStatus(tests.getStatus(id))), true
+                                            ));
+                                    return Command.SINGLE_SUCCESS;
+                                })))
+                .then(literal("set")
+                        .requires(it -> it.hasPermission(configuration.commandRequiredPermission()))
+                        .then(argument("id", StringArgumentType.string())
+                                .suggests(helper.suggestTest(test -> tests.isEnabled(test.id())))
+                                .then(argument("result", EnumArgument.enumArgument(Test.Result.class))
+                                        .executes(it -> helper.processSetStatus(it, ""))
+                                        .then(argument("message", StringArgumentType.greedyString())
+                                                .executes(it -> helper.processSetStatus(it, StringArgumentType.getString(it, "message"))))))));
+    }
+
+    @Override
+    public PlayerTestStore playerTestStore() {
+        return server.overworld().getDataStorage()
+                .computeIfAbsent(tag -> new PlayerTestStore().decode(tag), PlayerTestStore::new, "tests/" + id().getNamespace() + "_" + id().getPath());
+    }
+
+    @Override
+    public String commandName() {
+        return commandName;
     }
 
     @Override

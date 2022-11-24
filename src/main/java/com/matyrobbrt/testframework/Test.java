@@ -1,6 +1,7 @@
 package com.matyrobbrt.testframework;
 
 import com.matyrobbrt.testframework.group.Groupable;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
@@ -148,7 +149,16 @@ public interface Test extends Groupable {
     }
 
     enum Result {
-        PASSED, FAILED, NOT_PROCESSED;
+        PASSED(0x90ee90), FAILED(0xFfcccb), NOT_PROCESSED(0xA6A39E);
+        private final int colour;
+
+        Result(int colour) {
+            this.colour = colour;
+        }
+
+        public int getColour() {
+            return this.colour;
+        }
 
         public boolean passed() {
             return this == PASSED;
