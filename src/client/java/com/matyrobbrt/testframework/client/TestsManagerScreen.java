@@ -144,7 +144,7 @@ public abstract class TestsManagerScreen extends Screen {
                 final boolean renderTransparent = !isEnabled();
                 RenderSystem.setShaderTexture(0, TestsOverlay.ICON_BY_RESULT.get(status.result()));
                 if (renderTransparent) RenderSystem.enableBlend();
-                TestsManagerScreen.blitAlpha(pPoseStack, pLeft, pTop, 0, 0, 9, 9, 9, 9, renderTransparent ? alpha : 1f);
+                ClientUtils.blitAlpha(pPoseStack, pLeft, pTop, 0, 0, 9, 9, 9, 9, renderTransparent ? alpha : 1f);
                 if (renderTransparent) RenderSystem.disableBlend();
                 final Component title = TestsOverlay.statusColoured(test.visuals().title(), status);
                 Screen.drawString(pPoseStack, font, title, pLeft + 11, pTop, renderTransparent ? ((((int) (alpha * 255f)) << 24) | 0xffffff0) : 0xffffff);
@@ -189,14 +189,22 @@ public abstract class TestsManagerScreen extends Screen {
 
         protected final class GroupEntry extends Entry {
             private final Group group;
+            private final Button browseButton;
 
             private GroupEntry(Group group) {
                 this.group = group;
+                this.browseButton = new Button(0, 0, 50, 12, Component.literal("Browse"), button -> openBrowseGUI());
             }
 
             @Override
             public void render(PoseStack pPoseStack, int pIndex, int pTop, int pLeft, int pWidth, int pHeight, int pMouseX, int pMouseY, boolean pIsMouseOver, float pPartialTick) {
                 Screen.drawString(pPoseStack, font, getTitle(), pLeft + 11, pTop + 2, 0xffffff);
+                this.browseButton.x = pLeft + pWidth - 53;
+                this.browseButton.y = pTop - 1;
+                pPoseStack.pushPose();
+                pPoseStack.translate(0, 0, 100);
+                browseButton.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
+                pPoseStack.popPose();
             }
 
             @Override
@@ -218,25 +226,30 @@ public abstract class TestsManagerScreen extends Screen {
 
             @Override
             public boolean mouseClicked(double pMouseX, double pMouseY, int pButton) {
+                if (browseButton.isMouseOver(pMouseX, pMouseY)) return browseButton.mouseClicked(pMouseX, pMouseY, pButton);
                 if (pButton == GLFW.GLFW_MOUSE_BUTTON_LEFT && (Screen.hasShiftDown() || Screen.hasControlDown())) {
-                    Minecraft.getInstance().pushGuiLayer(new GroupTestsManagerScreen(
-                            Component.literal("Tests of group ").append(getTitle()),
-                            framework, List.of(group)
-                    ) {
-                        @Override
-                        protected void init() {
-                            super.init();
-                            showAsGroup.visible = false;
-                            showAsGroup.active = false;
-                            showAsGroup.setValue(false);
-                            groupableList.resetRows("");
-
-                            addRenderableWidget(new Button(this.width - 20 - 60, this.height - 29, 60, 20, CommonComponents.GUI_BACK, (p_97691_) -> this.onClose()));
-                        }
-                    });
+                    openBrowseGUI();
                     return false;
                 }
                 return super.mouseClicked(pMouseX, pMouseY, pButton);
+            }
+
+            private void openBrowseGUI() {
+                Minecraft.getInstance().pushGuiLayer(new GroupTestsManagerScreen(
+                        Component.literal("Tests of group ").append(getTitle()),
+                        framework, List.of(group)
+                ) {
+                    @Override
+                    protected void init() {
+                        super.init();
+                        showAsGroup.visible = false;
+                        showAsGroup.active = false;
+                        showAsGroup.setValue(false);
+                        groupableList.resetRows("");
+
+                        addRenderableWidget(new Button(this.width - 20 - 60, this.height - 29, 60, 20, CommonComponents.GUI_BACK, (p_97691_) -> this.onClose()));
+                    }
+                });
             }
 
             @Override
@@ -266,35 +279,4 @@ public abstract class TestsManagerScreen extends Screen {
         }
     }
 
-
-    public static void blitAlpha(PoseStack pPoseStack, int pX, int pY, int pWidth, int pHeight, float pUOffset, float pVOffset, int pUWidth, int pVHeight, int pTextureWidth, int pTextureHeight, float alpha) {
-        innerBlitAlpha(pPoseStack, pX, pX + pWidth, pY, pY + pHeight, 0, pUWidth, pVHeight, pUOffset, pVOffset, pTextureWidth, pTextureHeight, alpha);
-    }
-
-    public static void blitAlpha(PoseStack pPoseStack, int pX, int pY, float pUOffset, float pVOffset, int pWidth, int pHeight, int pTextureWidth, int pTextureHeight, float alpha) {
-        blitAlpha(pPoseStack, pX, pY, pWidth, pHeight, pUOffset, pVOffset, pWidth, pHeight, pTextureWidth, pTextureHeight, alpha);
-    }
-
-    private static void innerBlitAlpha(PoseStack pPoseStack, int pX1, int pX2, int pY1, int pY2, int pBlitOffset, int pUWidth, int pVHeight, float pUOffset, float pVOffset, int pTextureWidth, int pTextureHeight, float alpha) {
-        innerBlitAlpha(pPoseStack.last().pose(), pX1, pX2, pY1, pY2, pBlitOffset, (pUOffset + 0.0F) / (float)pTextureWidth, (pUOffset + (float)pUWidth) / (float)pTextureWidth, (pVOffset + 0.0F) / (float)pTextureHeight, (pVOffset + (float)pVHeight) / (float)pTextureHeight, alpha);
-    }
-
-    private static void innerBlitAlpha(Matrix4f pMatrix, int pX1, int pX2, int pY1, int pY2, int pBlitOffset, float pMinU, float pMaxU, float pMinV, float pMaxV, float alpha) {
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder bufferbuilder = tesselator.getBuilder();
-        bufferbuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-        bufferbuilder.vertex(pMatrix, (float)pX1, (float)pY2, (float)pBlitOffset).uv(pMinU, pMaxV).endVertex();
-        bufferbuilder.vertex(pMatrix, (float)pX2, (float)pY2, (float)pBlitOffset).uv(pMaxU, pMaxV).endVertex();
-        bufferbuilder.vertex(pMatrix, (float)pX2, (float)pY1, (float)pBlitOffset).uv(pMaxU, pMinV).endVertex();
-        bufferbuilder.vertex(pMatrix, (float)pX1, (float)pY1, (float)pBlitOffset).uv(pMinU, pMinV).endVertex();
-        tesselator.end();
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-    }
 }

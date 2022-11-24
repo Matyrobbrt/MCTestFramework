@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 public final class TestsOverlay implements IGuiOverlay {
     public static final int MAX_DISPLAYED = 5;
     // TODO - this will need to be rendered with transparency instead of using an already-transparent texture
-    public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background2.png");
+    public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background.png");
 
     private final TestFrameworkInternal impl;
     private final BooleanSupplier enabled;
@@ -126,16 +127,11 @@ public final class TestsOverlay implements IGuiOverlay {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        // final float[] oldColour = RenderSystem.getShaderColor();
-        // RenderSystem.setShaderColor(1f, 1f, 1f, 0f);
-        // RenderSystem.setShaderTexture(0, BG_TEXTURE);
 
-        renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4, 4, 4, 256, 256);
+        renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4, 4, 4, 256, 256, .5f);
+        renderingQueue.forEach(Runnable::run);
 
         RenderSystem.disableBlend();
-        // RenderSystem.setShaderColor(oldColour[0], oldColour[1], oldColour[2], oldColour[3]);
-
-        renderingQueue.forEach(Runnable::run);
     }
 
     static final Map<Test.Result, ResourceLocation> ICON_BY_RESULT = new EnumMap<>(Map.of(
@@ -193,7 +189,7 @@ public final class TestsOverlay implements IGuiOverlay {
         };
     }
 
-    private static void renderTilledTexture(PoseStack pose, ResourceLocation texture, int x, int y, int width, int height, int borderWidth, int borderHeight, int textureWidth, int textureHeight) {
+    private static void renderTilledTexture(PoseStack pose, ResourceLocation texture, int x, int y, int width, int height, int borderWidth, int borderHeight, int textureWidth, int textureHeight, float alpha) {
         final var sideWidth = Math.min(borderWidth, width / 2);
         final var sideHeight = Math.min(borderHeight, height / 2);
 
@@ -212,11 +208,12 @@ public final class TestsOverlay implements IGuiOverlay {
         final var topEdgeEnd = y + topHeight;
         final var bottomEdgeStart = topEdgeEnd + centerHeight;
         RenderSystem.setShaderTexture(0, texture);
+        ClientUtils.setupAlpha(alpha);
 
         // Top Left Corner
-        Screen.blit(pose, x, y, 0, 0, leftWidth, topHeight, textureWidth, textureHeight);
+        ClientUtils.blitAlphaSimple(pose, x, y, 0, 0, leftWidth, topHeight, textureWidth, textureHeight);
         // Bottom Left Corner
-        Screen.blit(pose, x, bottomEdgeStart, 0, textureHeight - sideHeight, leftWidth, sideHeight, textureWidth, textureHeight);
+        ClientUtils.blitAlphaSimple(pose, x, bottomEdgeStart, 0, textureHeight - sideHeight, leftWidth, sideHeight, textureWidth, textureHeight);
 
         // Render the Middle
         if (centreWidth > 0) {
@@ -238,9 +235,10 @@ public final class TestsOverlay implements IGuiOverlay {
         }
 
         // Top Right Corner
-        Screen.blit(pose, rightEdgeStart, y, textureWidth - sideWidth, 0, sideWidth, topHeight, textureWidth, textureHeight);
+        ClientUtils.blitAlphaSimple(pose, rightEdgeStart, y, textureWidth - sideWidth, 0, sideWidth, topHeight, textureWidth, textureHeight);
         // Bottom Right Corner
-        Screen.blit(pose, rightEdgeStart, bottomEdgeStart, textureWidth - sideWidth, textureHeight - sideHeight, sideWidth, sideHeight, textureWidth, textureHeight);
+        ClientUtils.blitAlphaSimple(pose, rightEdgeStart, bottomEdgeStart, textureWidth - sideWidth, textureHeight - sideHeight, sideWidth, sideHeight, textureWidth, textureHeight);
+        ClientUtils.disableAlpha();
     }
 
     private static void blitTiled(PoseStack pose, int x, int y, int width, int height, int u, int v, int textureDrawWidth, int textureDrawHeight, int textureWidth, int textureHeight) {
