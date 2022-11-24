@@ -2,14 +2,12 @@ package com.matyrobbrt.testframework;
 
 import com.matyrobbrt.testframework.group.Groupable;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -56,25 +54,6 @@ public interface Test extends Groupable {
      * @param framework the framework the test has been registered to
      */
     void init(TestFramework framework);
-
-    /**
-     * {@return the event's status}
-     */
-    Status status();
-
-    /**
-     * <strong>DO NOT USE THIS METHOD!</strong> <br> <br
-     * Sets the status of the test. <br>
-     * <strong>The status set using this method will be local-only!</strong> The status
-     * will not be synced with clients or the server. Use {@link TestFramework#changeStatus(Test, Status, Entity)} instead.
-     *
-     * @param newStatus the new status of the test
-     * @see TestFramework#changeStatus(Test, Status, Entity)
-     */
-    @Deprecated
-    @ApiStatus.Internal
-    @ApiStatus.OverrideOnly
-    void setStatus(Status newStatus);
 
     /**
      * {@return the visual information about the test}
@@ -157,6 +136,7 @@ public interface Test extends Groupable {
      * @param message the message, providing additional context if the test failed
      */
     record Status(Result result, String message) {
+        public static final Status DEFAULT = new Status(Result.NOT_PROCESSED, "");
         @Override
         public String toString() {
             if (message.isBlank()) {

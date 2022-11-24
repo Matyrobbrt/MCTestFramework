@@ -34,5 +34,6 @@ public interface TestFrameworkInternal extends TestFramework {
         void initialiseDefaultEnabledTests();
         Stream<Test> enabled();
         Optional<Group> maybeGetGroup(String id);
+        void setStatus(String testId, Test.Status status);
     }
 }

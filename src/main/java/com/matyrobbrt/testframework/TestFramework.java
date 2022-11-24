@@ -114,6 +114,8 @@ public interface TestFramework {
          */
         boolean isEnabled(String id);
 
+        Test.Status getStatus(String testId);
+
         /**
          * Registers a test to the framework. <br>
          * It is recommended you register tests during mod loading, for proper indexing.

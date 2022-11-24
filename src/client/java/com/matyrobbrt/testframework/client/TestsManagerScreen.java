@@ -138,13 +138,15 @@ public abstract class TestsManagerScreen extends Screen {
                 pLeft += 2;
                 pTop += 2;
 
+                final Test.Status status = framework.tests().getStatus(test.id());
+
                 final float alpha = .45f;
                 final boolean renderTransparent = !isEnabled();
-                RenderSystem.setShaderTexture(0, TestsOverlay.ICON_BY_RESULT.get(test.status().result()));
+                RenderSystem.setShaderTexture(0, TestsOverlay.ICON_BY_RESULT.get(status.result()));
                 if (renderTransparent) RenderSystem.enableBlend();
                 TestsManagerScreen.blitAlpha(pPoseStack, pLeft, pTop, 0, 0, 9, 9, 9, 9, renderTransparent ? alpha : 1f);
                 if (renderTransparent) RenderSystem.disableBlend();
-                final Component title = TestsOverlay.statusColoured(test.visuals().title(), test.status());
+                final Component title = TestsOverlay.statusColoured(test.visuals().title(), status);
                 Screen.drawString(pPoseStack, font, title, pLeft + 11, pTop, renderTransparent ? ((((int) (alpha * 255f)) << 24) | 0xffffff0) : 0xffffff);
             }
 
@@ -154,8 +156,10 @@ public abstract class TestsManagerScreen extends Screen {
                 if (!isEnabled()) {
                     tooltip.add(Component.literal("DISABLED").withStyle(ChatFormatting.GRAY).getVisualOrderText());
                 }
-                if (!test.status().message().isBlank()) {
-                    tooltip.add(Component.literal("!!! ").append(test.status().message()).withStyle(ChatFormatting.RED).getVisualOrderText());
+
+                final Test.Status status = framework.tests().getStatus(test.id());
+                if (!status.message().isBlank()) {
+                    tooltip.add(Component.literal("!!! ").append(status.message()).withStyle(ChatFormatting.RED).getVisualOrderText());
                 }
 
                 for (final Component desc : test.visuals().description()) {

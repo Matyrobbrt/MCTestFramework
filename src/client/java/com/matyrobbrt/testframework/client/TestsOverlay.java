@@ -66,14 +66,14 @@ public final class TestsOverlay implements IGuiOverlay {
             // But keeping the last completed ones, if present, and fading them out
             // TODO - may need to tweak this logic to only fade ONLY IF the amount of tests not passed is >= 5
             final Map<Test, Integer> lastCompleted = lastRenderedTests.stream()
-                    .filter(it -> it.status().result() == Test.Result.PASSED)
+                    .filter(it -> impl.tests().getStatus(it.id()).result() == Test.Result.PASSED)
                     .collect(Collectors.toMap(Function.identity(), lastRenderedTests::indexOf));
 
             final List<Test> actuallyToRender = new ArrayList<>(MAX_DISPLAYED);
             for (int i = 0; i < MAX_DISPLAYED; i++) actuallyToRender.add(null);
             lastCompleted.forEach((test, index) -> actuallyToRender.set(index, test));
             enabled.stream()
-                    .filter(it -> it.status().result() != Test.Result.PASSED)
+                    .filter(it -> impl.tests().getStatus(it.id()).result() != Test.Result.PASSED)
                     .limit(MAX_DISPLAYED - lastCompleted.size())
                     .forEach(it -> actuallyToRender.set(actuallyToRender.indexOf(null), it));
 
@@ -84,7 +84,7 @@ public final class TestsOverlay implements IGuiOverlay {
 
             for (final Test test : List.copyOf(actuallyToRender)) {
                 // If we find one that isn't passed, we need to start fading it out
-                if (test.status().result() == Test.Result.PASSED) {
+                if (impl.tests().getStatus(test.id()).result() == Test.Result.PASSED) {
                     final float fade = fading.computeIfAbsent(test, it -> 1f) - 0.005f;
                     if (fade <= 0) {
                         fading.removeFloat(test);
@@ -146,23 +146,24 @@ public final class TestsOverlay implements IGuiOverlay {
 
     // TODO - maybe "group" together tests in the same group?
     private XY renderTest(ForgeGui gui, Font font, Test test, PoseStack stack, int maxWidth, int x, int y, int colour, List<Runnable> rendering) {
+        final Test.Status status = impl.tests().getStatus(test.id());
         final FormattedCharSequence bullet = Component.literal("• ").withStyle(ChatFormatting.BLACK).getVisualOrderText();
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, bullet, x$, y$ - 1, colour)));
         x += font.width(bullet) + 1;
 
         rendering.add(withXY(x, y, (x$, y$) -> {
-            RenderSystem.setShaderTexture(0, ICON_BY_RESULT.get(test.status().result()));
+            RenderSystem.setShaderTexture(0, ICON_BY_RESULT.get(status.result()));
             GuiComponent.blit(stack, x$, y$, 0, 0, 9, 9, 9, 9);
         }));
         x += 11;
 
-        final Component title = statusColoured(test.visuals().title(), test.status()).append(":");
+        final Component title = statusColoured(test.visuals().title(), status).append(":");
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, title, x$, y$, colour)));
 
         final List<FormattedCharSequence> extras = new ArrayList<>();
         if (Screen.hasShiftDown()) extras.addAll(test.visuals().description().stream().flatMap(it -> font.split(it, maxWidth).stream()).toList());
-        if (test.status().result() != Test.Result.PASSED && !test.status().message().isBlank()) {
-            extras.add(Component.literal("!!! " + test.status().message()).withStyle(ChatFormatting.RED).getVisualOrderText());
+        if (status.result() != Test.Result.PASSED && !status.message().isBlank()) {
+            extras.add(Component.literal("!!! " + status.message()).withStyle(ChatFormatting.RED).getVisualOrderText());
         }
 
         int maxX = x;

@@ -10,6 +10,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -56,6 +57,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -102,8 +104,9 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             // TODO - maybe dump a GitHub-flavoured markdown file?
             logger().info("Test summary processing..");
             tests().all().forEach(test -> {
+                final Test.Status status = tests.getStatus(test.id());
                 logger().info("\tTest " + test.id() + ": ");
-                logger().info(test.status().result() + (test.status().message().isBlank() ? "" : " - " + test.status().message()));
+                logger().info(status.result() + (status.message().isBlank() ? "" : " - " + status.message()));
             });
             logger.info("Test Framework finished.");
         });
@@ -269,11 +272,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void changeStatus(Test test, Test.Status newStatus, @Nullable Entity changer) {
-        if (test.status().equals(newStatus)) return; // If the status is the same, don't waste power
+        if (tests.getStatus(test.id()).equals(newStatus)) return; // If the status is the same, don't waste power
 
-        test.setStatus(newStatus);
+        tests.setStatus(test.id(), newStatus);
 
         logger.info("Status of test '{}' has had status changed to {}{}.", test.id(), newStatus, changer instanceof Player player ? " by " + player.getGameProfile().getName() : "");
 
@@ -374,6 +376,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, EventListenerGroupImpl> collectors = new HashMap<>();
         private final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
+        private final Map<String, Test.Status> statuses = new ConcurrentHashMap<>();
 
         @Override
         public Optional<Test> byId(String id) {
@@ -435,6 +438,16 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
 
         @Override
+        public Test.Status getStatus(String testId) {
+            return statuses.getOrDefault(testId, Test.Status.DEFAULT);
+        }
+
+        @Override
+        public void setStatus(String testId, Test.Status status) {
+            statuses.put(testId, status);
+        }
+
+        @Override
         public void register(Test test) {
             synchronized (tests) {
                 tests.put(test.id(), test);
@@ -475,7 +488,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
 
         @Override
-        @SuppressWarnings("deprecation")
         public void initialiseDefaultEnabledTests() {
             synchronized (enabled) {
                 enabled.clear();
@@ -506,7 +518,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                     if (isEnabledByDefault.test(test)) {
                         enable(test.id());
                     }
-                    test.setStatus(new Test.Status(Test.Result.NOT_PROCESSED, ""));
+                    setStatus(test.id(), new Test.Status(Test.Result.NOT_PROCESSED, ""));
                 }
             }
         }

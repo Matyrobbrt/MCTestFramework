@@ -18,7 +18,6 @@ public abstract class AbstractTest implements Test {
     protected final List<String> groups = new ArrayList<>();
     protected boolean enabledByDefault;
     protected Visuals visuals;
-    private Status status = new Status(Result.NOT_PROCESSED, "");
 
     protected AbstractTest() {
         final TestHolder marker = getClass().getAnnotation(TestHolder.class);
@@ -47,16 +46,6 @@ public abstract class AbstractTest implements Test {
     }
 
     @Override
-    public Status status() {
-        return status;
-    }
-
-    @Override
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
-    @Override
     public Visuals visuals() {
         return visuals;
     }
@@ -76,6 +65,10 @@ public abstract class AbstractTest implements Test {
 
     public Logger getLogger() {
         return framework.logger();
+    }
+
+    public Status getStatus() {
+        return framework.tests().getStatus(id());
     }
 
     public void updateStatus(Status status, @Nullable Entity changer) {

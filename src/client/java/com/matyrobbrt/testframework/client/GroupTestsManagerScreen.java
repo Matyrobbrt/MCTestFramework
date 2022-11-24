@@ -141,17 +141,17 @@ public class GroupTestsManagerScreen extends TestsManagerScreen {
         }, NOT_PROCESSED("Not Processed") {
             @Override
             public boolean test(TestFrameworkInternal framework, Test test) {
-                return test.status().result() == Test.Result.NOT_PROCESSED;
+                return framework.tests().getStatus(test.id()).result() == Test.Result.NOT_PROCESSED;
             }
         }, PASSED("Passed") {
             @Override
             public boolean test(TestFrameworkInternal framework, Test test) {
-                return test.status().result().passed();
+                return framework.tests().getStatus(test.id()).result().passed();
             }
         }, FAILED("Failed") {
             @Override
             public boolean test(TestFrameworkInternal framework, Test test) {
-                return test.status().result() == Test.Result.FAILED;
+                return framework.tests().getStatus(test.id()).result() == Test.Result.FAILED;
             }
         }, ENABLED("Enabled") {
             @Override

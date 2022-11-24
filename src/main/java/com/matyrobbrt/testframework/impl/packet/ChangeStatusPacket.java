@@ -17,10 +17,9 @@ public record ChangeStatusPacket(TestFrameworkInternal framework, String testId,
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void handle(NetworkEvent.Context context) {
         switch (context.getDirection()) {
-            case PLAY_TO_CLIENT -> framework.tests().byId(testId).orElseThrow().setStatus(status);
+            case PLAY_TO_CLIENT -> framework.tests().setStatus(testId, status);
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
                 if (framework.configuration().modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
