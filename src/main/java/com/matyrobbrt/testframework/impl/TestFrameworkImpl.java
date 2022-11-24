@@ -1,7 +1,6 @@
 package com.matyrobbrt.testframework.impl;
 
 import com.matyrobbrt.testframework.Test;
-import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
@@ -37,6 +36,7 @@ import org.apache.logging.log4j.core.appender.rolling.OnStartupTriggeringPolicy;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -64,8 +64,9 @@ import java.util.stream.Stream;
 
 import static net.minecraft.commands.Commands.*;
 
-public class TestFrameworkImpl implements TestFramework {
-    public final FrameworkConfiguration configuration;
+@ApiStatus.Internal
+public class TestFrameworkImpl implements TestFrameworkInternal {
+    private final FrameworkConfiguration configuration;
     private final @Nullable FrameworkClient client;
 
     private final Logger logger;
@@ -92,7 +93,7 @@ public class TestFrameworkImpl implements TestFramework {
 
         MinecraftForge.EVENT_BUS.addListener((final ServerStartedEvent event) -> {
             server = event.getServer();
-            tests.initialiseTests();
+            tests.initialiseDefaultEnabledTests();
         });
         MinecraftForge.EVENT_BUS.addListener((final ServerStoppedEvent event) -> {
             server = event.getServer() == server ? null : server;
@@ -108,6 +109,7 @@ public class TestFrameworkImpl implements TestFramework {
         });
     }
 
+    @Override
     public void registerCommands(LiteralArgumentBuilder<CommandSourceStack> node) {
         final BiFunction<LiteralArgumentBuilder<CommandSourceStack>, Boolean, LiteralArgumentBuilder<CommandSourceStack>> commandEnabling = (stack, enabling) ->
                 stack.requires(it -> it.hasPermission(LEVEL_GAMEMASTERS))
@@ -157,7 +159,13 @@ public class TestFrameworkImpl implements TestFramework {
         node.then(commandEnabling.apply(literal("disable"), false));
     }
 
+    @Override
+    public FrameworkConfiguration configuration() {
+        return configuration;
+    }
+
     private IEventBus modBus;
+    @Override
     public void init(final IEventBus modBus, final ModContainer container) {
         this.modBus = modBus;
         final List<Test> collected = collectTests(container);
@@ -193,7 +201,7 @@ public class TestFrameworkImpl implements TestFramework {
             synchronized (impl.tests().enabled) {
                 List.copyOf(impl.tests().enabled).forEach(impl.tests()::disable);
             }
-            impl.tests().initialiseTests();
+            impl.tests().initialiseDefaultEnabledTests();
         });
     }
 
@@ -206,7 +214,7 @@ public class TestFrameworkImpl implements TestFramework {
                 this.channel = channel;
             }
 
-            <P extends TFPacket> void register(Class<P> pkt, BiFunction<TestFrameworkImpl, FriendlyByteBuf, P> decoder) {
+            <P extends TFPacket> void register(Class<P> pkt, BiFunction<TestFrameworkInternal, FriendlyByteBuf, P> decoder) {
                 channel.messageBuilder(pkt, id++)
                         .consumerMainThread((packet, contextSupplier) -> {
                             final var ctx = contextSupplier.get();
@@ -217,7 +225,7 @@ public class TestFrameworkImpl implements TestFramework {
                         .add();
             }
 
-            <P extends TFPacket> void registerNetworkThread(Class<P> pkt, BiFunction<TestFrameworkImpl, FriendlyByteBuf, P> decoder) {
+            <P extends TFPacket> void registerNetworkThread(Class<P> pkt, BiFunction<TestFrameworkInternal, FriendlyByteBuf, P> decoder) {
                 channel.messageBuilder(pkt, id++)
                         .consumerNetworkThread((packet, contextSupplier) -> {
                             final var ctx = contextSupplier.get();
@@ -235,7 +243,8 @@ public class TestFrameworkImpl implements TestFramework {
         registrar.register(ChangeEnabledPacket.class, ChangeEnabledPacket::decode);
     }
 
-    protected List<Test> collectTests(final ModContainer container) {
+    @Override
+    public List<Test> collectTests(final ModContainer container) {
         return configuration.testCollector().collect(container);
     }
 
@@ -359,11 +368,11 @@ public class TestFrameworkImpl implements TestFramework {
         }
     }
 
-    public final class TestsImpl implements Tests {
+    public final class TestsImpl implements TestsInternal {
         private final Map<String, Test> tests = Collections.synchronizedMap(new HashMap<>());
         private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, EventListenerCollectorImpl> collectors = new HashMap<>();
-        public final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
+        private final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
 
         @Override
         public Optional<Test> byId(String id) {
@@ -450,13 +459,15 @@ public class TestFrameworkImpl implements TestFramework {
             }
         }
 
+        @Override
         public Stream<Test> enabled() {
             synchronized (enabled) {
                 return enabled.stream().flatMap(it -> byId(it).stream());
             }
         }
 
-        private void initialiseTests() {
+        @Override
+        public void initialiseDefaultEnabledTests() {
             Predicate<Test> isEnabledByDefault = Test::enabledByDefault;
 
             final Set<String> enabledTests = new HashSet<>(configuration.enabledTests());

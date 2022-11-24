@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.client;
 
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.group.Group;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
@@ -29,7 +29,7 @@ public class GroupTestsManagerScreen extends TestsManagerScreen {
     protected CycleButton<Boolean> showAsGroup;
     protected CycleButton<FilterMode> filterMode;
 
-    public GroupTestsManagerScreen(Component title, TestFrameworkImpl framework, List<Group> groups) {
+    public GroupTestsManagerScreen(Component title, TestFrameworkInternal framework, List<Group> groups) {
         super(title, framework);
         this.groups = groups;
     }
@@ -132,35 +132,35 @@ public class GroupTestsManagerScreen extends TestsManagerScreen {
         }
     }
 
-    public enum FilterMode implements BiPredicate<TestFrameworkImpl, Test> {
+    public enum FilterMode implements BiPredicate<TestFrameworkInternal, Test> {
         ALL("All") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return true;
             }
         }, NOT_PROCESSED("Not Processed") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return test.status().result() == Test.Result.NOT_PROCESSED;
             }
         }, PASSED("Passed") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return test.status().result().passed();
             }
         }, FAILED("Failed") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return test.status().result() == Test.Result.FAILED;
             }
         }, ENABLED("Enabled") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return framework.tests().isEnabled(test.id());
             }
         }, DISABLED("Disabled") {
             @Override
-            public boolean test(TestFrameworkImpl framework, Test test) {
+            public boolean test(TestFrameworkInternal framework, Test test) {
                 return !framework.tests().isEnabled(test.id());
             }
         };

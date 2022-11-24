@@ -1,14 +1,14 @@
 package com.matyrobbrt.testframework.impl.packet;
 
 import com.matyrobbrt.testframework.Test;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.Objects;
 
-public record ChangeStatusPacket(TestFrameworkImpl framework, String testId, Test.Status status) implements TFPacket {
+public record ChangeStatusPacket(TestFrameworkInternal framework, String testId, Test.Status status) implements TFPacket {
     @Override
     public void encode(FriendlyByteBuf buf) {
         buf.writeUtf(testId);
@@ -22,7 +22,7 @@ public record ChangeStatusPacket(TestFrameworkImpl framework, String testId, Tes
             case PLAY_TO_CLIENT -> framework.tests().byId(testId).orElseThrow().setStatus(status);
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
-                if (framework.configuration.modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
+                if (framework.configuration().modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
                     framework.changeStatus(
                             framework.tests().byId(testId).orElseThrow(),
                             status, player
@@ -32,7 +32,7 @@ public record ChangeStatusPacket(TestFrameworkImpl framework, String testId, Tes
         }
     }
 
-    public static ChangeStatusPacket decode(TestFrameworkImpl framework, FriendlyByteBuf buf) {
+    public static ChangeStatusPacket decode(TestFrameworkInternal framework, FriendlyByteBuf buf) {
         return new ChangeStatusPacket(framework, buf.readUtf(), new Test.Status(buf.readEnum(Test.Result.class), buf.readUtf()));
     }
 }

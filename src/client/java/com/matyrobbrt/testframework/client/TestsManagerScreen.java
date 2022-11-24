@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.client;
 
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.group.Group;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -35,8 +35,8 @@ import java.util.stream.Stream;
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
 public abstract class TestsManagerScreen extends Screen {
-    protected final TestFrameworkImpl framework;
-    public TestsManagerScreen(Component title, TestFrameworkImpl framework) {
+    protected final TestFrameworkInternal framework;
+    public TestsManagerScreen(Component title, TestFrameworkInternal framework) {
         super(title);
         this.framework = framework;
     }

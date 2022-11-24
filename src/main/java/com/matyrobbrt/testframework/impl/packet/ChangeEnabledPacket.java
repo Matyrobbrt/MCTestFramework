@@ -1,6 +1,6 @@
 package com.matyrobbrt.testframework.impl.packet;
 
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -8,7 +8,7 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public record ChangeEnabledPacket(TestFrameworkImpl framework, String testId, boolean enabled) implements TFPacket {
+public record ChangeEnabledPacket(TestFrameworkInternal framework, String testId, boolean enabled) implements TFPacket {
     @Override
     public void encode(FriendlyByteBuf buf) {
         buf.writeUtf(testId);
@@ -24,7 +24,7 @@ public record ChangeEnabledPacket(TestFrameworkImpl framework, String testId, bo
             }
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
-                if (framework.configuration.modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
+                if (framework.configuration().modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
                     framework.setEnabled(
                             framework.tests().byId(testId).orElseThrow(),
                             enabled, player
@@ -34,7 +34,7 @@ public record ChangeEnabledPacket(TestFrameworkImpl framework, String testId, bo
         }
     }
 
-    public static ChangeEnabledPacket decode(TestFrameworkImpl framework, FriendlyByteBuf buf) {
+    public static ChangeEnabledPacket decode(TestFrameworkInternal framework, FriendlyByteBuf buf) {
         return new ChangeEnabledPacket(framework, buf.readUtf(), buf.readBoolean());
     }
 }

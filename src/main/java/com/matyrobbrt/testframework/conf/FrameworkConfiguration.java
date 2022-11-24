@@ -1,6 +1,8 @@
 package com.matyrobbrt.testframework.conf;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -24,6 +26,10 @@ public record FrameworkConfiguration(
 ) {
     public static Builder builder(ResourceLocation id) {
         return new Builder(id);
+    }
+
+    public TestFrameworkInternal create() {
+        return new TestFrameworkImpl(this);
     }
 
     public static final class Builder {

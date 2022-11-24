@@ -1,7 +1,7 @@
 package com.matyrobbrt.testframework.client;
 
 import com.matyrobbrt.testframework.Test;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
@@ -30,13 +30,13 @@ public final class TestsOverlay implements IGuiOverlay {
     // TODO - this will need to be rendered with transparency instead of using an already-transparent texture
     public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background2.png");
 
-    private final TestFrameworkImpl impl;
+    private final TestFrameworkInternal impl;
     private final BooleanSupplier enabled;
 
     private final Object2FloatMap<Test> fading = new Object2FloatOpenHashMap<>();
     private final List<Test> lastRenderedTests = new ArrayList<>(MAX_DISPLAYED);
 
-    public TestsOverlay(TestFrameworkImpl impl, BooleanSupplier enabled) {
+    public TestsOverlay(TestFrameworkInternal impl, BooleanSupplier enabled) {
         this.impl = impl;
         this.enabled = enabled;
         fading.defaultReturnValue(1f);

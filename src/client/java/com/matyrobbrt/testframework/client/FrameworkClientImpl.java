@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.client;
 
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.impl.FrameworkClient;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ToggleKeyMapping;
@@ -16,10 +16,10 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 
 public class FrameworkClientImpl implements FrameworkClient {
-    private final TestFrameworkImpl impl;
+    private final TestFrameworkInternal impl;
     private final ClientConfiguration configuration;
 
-    public FrameworkClientImpl(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
+    public FrameworkClientImpl(TestFrameworkInternal impl, ClientConfiguration clientConfiguration) {
         this.impl = impl;
         this.configuration = clientConfiguration;
     }
@@ -58,8 +58,8 @@ public class FrameworkClientImpl implements FrameworkClient {
     public static final class Factory implements FrameworkClient.Factory {
 
         @Override
-        public FrameworkClient create(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
-            return null;
+        public FrameworkClient create(TestFrameworkInternal impl, ClientConfiguration clientConfiguration) {
+            return new FrameworkClientImpl(impl, clientConfiguration);
         }
     }
 }

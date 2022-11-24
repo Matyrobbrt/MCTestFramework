@@ -4,7 +4,7 @@ import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
-import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -30,7 +30,7 @@ public class ExampleMod {
     public static final String LEVEL_RELATED_EVENTS = "events.level_related";
 
     public ExampleMod() {
-        final TestFrameworkImpl framework = new TestFrameworkImpl(FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
+        final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()
                         .toggleOverlayKey(GLFW.GLFW_KEY_J)
                         .openManagerKey(GLFW.GLFW_KEY_N)
@@ -38,7 +38,7 @@ public class ExampleMod {
                 .allowClientModifications().syncToClients()
                 .testCollector(FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class))
                 .groupNameCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault)
-                .build());
+                .build().create();
         framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());
 
         MinecraftForge.EVENT_BUS.addListener((final RegisterCommandsEvent event) -> {

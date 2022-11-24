@@ -12,6 +12,6 @@ public interface FrameworkClient {
 
     void init(IEventBus modBus, ModContainer container);
     interface Factory {
-        FrameworkClient create(TestFrameworkImpl impl, ClientConfiguration clientConfiguration);
+        FrameworkClient create(TestFrameworkInternal impl, ClientConfiguration clientConfiguration);
     }
 }
