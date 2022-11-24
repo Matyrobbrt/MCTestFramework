@@ -18,7 +18,6 @@ sourceSets {
         compileClasspath += main.compileClasspath
     }
     main {
-        runtimeClasspath += client.output
         resources {
             srcDir 'src/generated/resources'
         }
@@ -42,6 +41,7 @@ minecraft {
             mods {
                 examplemod {
                     source sourceSets.main
+                    source sourceSets.client
                 }
             }
         }
@@ -58,6 +58,7 @@ minecraft {
             mods {
                 examplemod {
                     source sourceSets.main
+                    source sourceSets.client
                 }
             }
         }
@@ -74,6 +75,7 @@ minecraft {
             mods {
                 examplemod {
                     source sourceSets.main
+                    source sourceSets.client
                 }
             }
         }
@@ -90,6 +92,7 @@ minecraft {
             mods {
                 examplemod {
                     source sourceSets.main
+                    source sourceSets.client
                 }
             }
         }

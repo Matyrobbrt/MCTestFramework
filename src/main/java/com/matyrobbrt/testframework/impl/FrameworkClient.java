@@ -8,10 +8,12 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 
 public interface FrameworkClient {
-    Optional<Factory> FACTORY = ServiceLoader.load(Factory.class).findFirst();
-
     void init(IEventBus modBus, ModContainer container);
     interface Factory {
         FrameworkClient create(TestFrameworkInternal impl, ClientConfiguration clientConfiguration);
+    }
+
+    static Optional<Factory> factory() {
+        return ServiceLoader.load(Factory.class).findFirst();
     }
 }

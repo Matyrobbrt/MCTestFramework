@@ -10,7 +10,6 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -88,7 +87,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         prepareLogger();
 
         if (configuration.clientConfiguration() != null) {
-            this.client = FrameworkClient.FACTORY.map(it -> it.create(this, configuration.clientConfiguration().get())).orElse(null);
+            this.client = FrameworkClient.factory().map(it -> it.create(this, configuration.clientConfiguration().get())).orElse(null);
         } else {
             this.client = null;
         }
