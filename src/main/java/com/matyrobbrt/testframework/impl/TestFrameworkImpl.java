@@ -66,6 +66,7 @@ import static net.minecraft.commands.Commands.*;
 
 public class TestFrameworkImpl implements TestFramework {
     public final FrameworkConfiguration configuration;
+    private final @Nullable FrameworkClient client;
 
     private final Logger logger;
     private final ResourceLocation id;
@@ -82,6 +83,12 @@ public class TestFrameworkImpl implements TestFramework {
 
         this.logger = LoggerFactory.getLogger("TestFramework " + this.id);
         prepareLogger();
+
+        if (configuration.clientConfiguration() != null) {
+            this.client = FrameworkClient.FACTORY.map(it -> it.create(this, configuration.clientConfiguration().get())).orElse(null);
+        } else {
+            this.client = null;
+        }
 
         MinecraftForge.EVENT_BUS.addListener((final ServerStartedEvent event) -> {
             server = event.getServer();
@@ -161,7 +168,7 @@ public class TestFrameworkImpl implements TestFramework {
         modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
 
         if (FMLLoader.getDist().isClient()) {
-            setupClient(this, modBus);
+            setupClient(this, modBus, container);
         }
     }
 
@@ -180,8 +187,8 @@ public class TestFrameworkImpl implements TestFramework {
                 }));
     }
 
-    private static void setupClient(TestFrameworkImpl impl, IEventBus modBus) {
-        if (impl.configuration.clientConfiguration() != null) new FrameworkImplClient(impl, impl.configuration.clientConfiguration().get()).init(modBus);
+    private static void setupClient(TestFrameworkImpl impl, IEventBus modBus, ModContainer container) {
+        if (impl.client != null) impl.client.init(modBus, container);
         MinecraftForge.EVENT_BUS.addListener((final ClientPlayerNetworkEvent.LoggingIn logOut) -> {
             synchronized (impl.tests().enabled) {
                 List.copyOf(impl.tests().enabled).forEach(impl.tests()::disable);

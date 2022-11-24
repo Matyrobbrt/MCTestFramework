@@ -1,8 +1,8 @@
-package com.matyrobbrt.testframework.impl;
+package com.matyrobbrt.testframework.client;
 
-import com.matyrobbrt.testframework.client.GroupTestsManagerScreen;
-import com.matyrobbrt.testframework.client.TestsOverlay;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
+import com.matyrobbrt.testframework.impl.FrameworkClient;
+import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ToggleKeyMapping;
@@ -10,20 +10,22 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModContainer;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
-final class FrameworkImplClient {
+public class FrameworkClientImpl implements FrameworkClient {
     private final TestFrameworkImpl impl;
     private final ClientConfiguration configuration;
 
-    public FrameworkImplClient(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
+    public FrameworkClientImpl(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
         this.impl = impl;
         this.configuration = clientConfiguration;
     }
 
-    public void init(IEventBus modBus) {
+    @Override
+    public void init(IEventBus modBus, ModContainer container) {
         final String keyCategory = "key.categories." + impl.id().getNamespace() + "." + impl.id().getPath();
 
         final BooleanSupplier overlayEnabled;
@@ -50,6 +52,14 @@ final class FrameworkImplClient {
                 }
             };
             modBus.addListener((final RegisterKeyMappingsEvent event) -> event.register(openManagerKey));
+        }
+    }
+
+    public static final class Factory implements FrameworkClient.Factory {
+
+        @Override
+        public FrameworkClient create(TestFrameworkImpl impl, ClientConfiguration clientConfiguration) {
+            return null;
         }
     }
 }
