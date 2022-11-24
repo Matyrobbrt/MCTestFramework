@@ -17,6 +17,7 @@ public record ChangeStatusPacket(TestFrameworkInternal framework, String testId,
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void handle(NetworkEvent.Context context) {
         switch (context.getDirection()) {
             case PLAY_TO_CLIENT -> framework.tests().byId(testId).orElseThrow().setStatus(status);

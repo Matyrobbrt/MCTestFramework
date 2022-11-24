@@ -17,7 +17,7 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class TestTest1 extends AbstractTest {
     @Override
-    public void onEnabled(EventListenerCollector buses) {
+    public void onEnabled(EventListenerGroup buses) {
         buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final PlayerInteractEvent.RightClickBlock event) -> {
             if (!event.getLevel().isClientSide && event.getItemStack().is(Items.GLOWSTONE)) {
                 if (event.getEntity().isShiftKeyDown()) {

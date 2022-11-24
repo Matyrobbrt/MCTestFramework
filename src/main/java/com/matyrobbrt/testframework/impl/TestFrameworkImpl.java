@@ -269,6 +269,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void changeStatus(Test test, Test.Status newStatus, @Nullable Entity changer) {
         if (test.status().equals(newStatus)) return; // If the status is the same, don't waste power
 
@@ -371,7 +372,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     public final class TestsImpl implements TestsInternal {
         private final Map<String, Test> tests = Collections.synchronizedMap(new HashMap<>());
         private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
-        private final Map<String, EventListenerCollectorImpl> collectors = new HashMap<>();
+        private final Map<String, EventListenerGroupImpl> collectors = new HashMap<>();
         private final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
 
         @Override
@@ -393,6 +394,13 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
 
         @Override
+        public Optional<Group> maybeGetGroup(String id) {
+            synchronized (groups) {
+                return Optional.ofNullable(groups.get(id));
+            }
+        }
+
+        @Override
         public Collection<Group> allGroups() {
             synchronized (groups) {
                 return groups.values();
@@ -401,7 +409,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         @Override
         public void enable(String id) {
-            final EventListenerCollectorImpl collector = collectors.computeIfAbsent(id, it -> new EventListenerCollectorImpl()
+            final EventListenerGroupImpl collector = collectors.computeIfAbsent(id, it -> new EventListenerGroupImpl()
                     .add(Mod.EventBusSubscriber.Bus.MOD, modBus)
                     .add(Mod.EventBusSubscriber.Bus.FORGE, MinecraftForge.EVENT_BUS));
             byId(id).orElseThrow().onEnabled(collector);
@@ -413,7 +421,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         @Override
         public void disable(String id) {
             byId(id).orElseThrow().onDisabled();
-            Optional.ofNullable(collectors.get(id)).ifPresent(EventListenerCollectorImpl::unregister);
+            Optional.ofNullable(collectors.get(id)).ifPresent(EventListenerGroupImpl::unregister);
             synchronized (enabled) {
                 enabled.remove(id);
             }
@@ -467,7 +475,11 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
 
         @Override
+        @SuppressWarnings("deprecation")
         public void initialiseDefaultEnabledTests() {
+            synchronized (enabled) {
+                enabled.clear();
+            }
             Predicate<Test> isEnabledByDefault = Test::enabledByDefault;
 
             final Set<String> enabledTests = new HashSet<>(configuration.enabledTests());

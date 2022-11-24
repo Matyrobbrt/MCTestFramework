@@ -12,28 +12,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-class EventListenerCollectorImpl implements Test.EventListenerCollector {
+class EventListenerGroupImpl implements Test.EventListenerGroup {
     private final Map<Mod.EventBusSubscriber.Bus, IEventBus> buses = new HashMap<>();
-    private final Map<Mod.EventBusSubscriber.Bus, ListenerAcceptorImpl> acceptors = new HashMap<>();
-    public EventListenerCollectorImpl add(Mod.EventBusSubscriber.Bus type, IEventBus bus) {
+    private final Map<Mod.EventBusSubscriber.Bus, EventListenerCollectorImpl> collectors = new HashMap<>();
+    public EventListenerGroupImpl add(Mod.EventBusSubscriber.Bus type, IEventBus bus) {
         buses.put(type, bus);
         return this;
     }
 
     @Override
-    public ListenerAcceptor getFor(Mod.EventBusSubscriber.Bus bus) {
-        return acceptors.computeIfAbsent(bus, it -> new ListenerAcceptorImpl(buses.get(bus)));
+    public EventListenerCollector getFor(Mod.EventBusSubscriber.Bus bus) {
+        return collectors.computeIfAbsent(bus, it -> new EventListenerCollectorImpl(buses.get(bus)));
     }
 
     public void unregister() {
-        acceptors.values().forEach(ListenerAcceptorImpl::unregister);
+        collectors.values().forEach(EventListenerCollectorImpl::unregisterAll);
     }
 
-    private static final class ListenerAcceptorImpl implements ListenerAcceptor {
+    private static final class EventListenerCollectorImpl implements EventListenerCollector {
         private final IEventBus bus;
         private final List<Object> subscribers = new ArrayList<>();
 
-        private ListenerAcceptorImpl(IEventBus bus) {
+        private EventListenerCollectorImpl(IEventBus bus) {
             this.bus = bus;
         }
 
@@ -49,7 +49,8 @@ class EventListenerCollectorImpl implements Test.EventListenerCollector {
             subscribers.add(consumer);
         }
 
-        private void unregister() {
+        @Override
+        public void unregisterAll() {
             subscribers.forEach(bus::unregister);
         }
     }

@@ -16,8 +16,8 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class UngroupedTest extends AbstractTest {
     @Override
-    public void onEnabled(EventListenerCollector events) {
-        events.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final LivingEvent.LivingJumpEvent event) -> {
+    public void onEnabled(EventListenerGroup buses) {
+        buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final LivingEvent.LivingJumpEvent event) -> {
             if (event.getEntity() instanceof Player && !event.getEntity().getLevel().isClientSide()) {
                 pass();
             }
