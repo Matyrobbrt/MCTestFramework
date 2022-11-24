@@ -380,34 +380,26 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         @Override
         public Optional<Test> byId(String id) {
-            synchronized (tests) {
-                return Optional.ofNullable(tests.get(id));
-            }
+            return Optional.ofNullable(tests.get(id));
         }
 
         @Override
         public Group getOrCreateGroup(String id) {
-            synchronized (groups) {
-                @Nullable Group group = groups.get(id);
-                if (group != null) return group;
-                group = addGroupToParents(new Group(id, new CopyOnWriteArrayList<>()));
-                groups.put(id, group);
-                return group;
-            }
+            @Nullable Group group = groups.get(id);
+            if (group != null) return group;
+            group = addGroupToParents(new Group(id, new CopyOnWriteArrayList<>()));
+            groups.put(id, group);
+            return group;
         }
 
         @Override
         public Optional<Group> maybeGetGroup(String id) {
-            synchronized (groups) {
-                return Optional.ofNullable(groups.get(id));
-            }
+            return Optional.ofNullable(groups.get(id));
         }
 
         @Override
         public Collection<Group> allGroups() {
-            synchronized (groups) {
-                return groups.values();
-            }
+            return groups.values();
         }
 
         @Override
@@ -416,25 +408,19 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                     .add(Mod.EventBusSubscriber.Bus.MOD, modBus)
                     .add(Mod.EventBusSubscriber.Bus.FORGE, MinecraftForge.EVENT_BUS));
             byId(id).orElseThrow().onEnabled(collector);
-            synchronized (enabled) {
-                enabled.add(id);
-            }
+            enabled.add(id);
         }
 
         @Override
         public void disable(String id) {
             byId(id).orElseThrow().onDisabled();
             Optional.ofNullable(collectors.get(id)).ifPresent(EventListenerGroupImpl::unregister);
-            synchronized (enabled) {
-                enabled.remove(id);
-            }
+            enabled.remove(id);
         }
 
         @Override
         public boolean isEnabled(String id) {
-            synchronized (enabled) {
-                return enabled.contains(id);
-            }
+            return enabled.contains(id);
         }
 
         @Override
@@ -449,49 +435,37 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         @Override
         public void register(Test test) {
-            synchronized (tests) {
-                tests.put(test.id(), test);
-            }
-            synchronized (groups) {
-                if (test.groups().isEmpty()) {
-                    getOrCreateGroup("ungrouped").add(test);
-                } else {
-                    test.groups().forEach(group -> getOrCreateGroup(group).add(test));
-                }
+            tests.put(test.id(), test);
+            if (test.groups().isEmpty()) {
+                getOrCreateGroup("ungrouped").add(test);
+            } else {
+                test.groups().forEach(group -> getOrCreateGroup(group).add(test));
             }
             test.init(TestFrameworkImpl.this);
         }
 
         private Group addGroupToParents(Group group) {
-            synchronized (groups) {
-                final List<String> splitOnDot = List.of(group.id().split("\\."));
-                if (splitOnDot.size() >= 2) {
-                    final Group parent = getOrCreateGroup(String.join(".", splitOnDot.subList(0, splitOnDot.size() - 1)));
-                    parent.add(group);
-                }
+            final List<String> splitOnDot = List.of(group.id().split("\\."));
+            if (splitOnDot.size() >= 2) {
+                final Group parent = getOrCreateGroup(String.join(".", splitOnDot.subList(0, splitOnDot.size() - 1)));
+                parent.add(group);
             }
             return group;
         }
 
         @Override
         public Collection<Test> all() {
-            synchronized (tests) {
-                return Collections.unmodifiableCollection(tests.values());
-            }
+            return Collections.unmodifiableCollection(tests.values());
         }
 
         @Override
         public Stream<Test> enabled() {
-            synchronized (enabled) {
-                return enabled.stream().flatMap(it -> byId(it).stream());
-            }
+            return enabled.stream().flatMap(it -> byId(it).stream());
         }
 
         @Override
         public void initialiseDefaultEnabledTests() {
-            synchronized (enabled) {
-                enabled.clear();
-            }
+            enabled.clear();
             Predicate<Test> isEnabledByDefault = Test::enabledByDefault;
 
             final Set<String> enabledTests = new HashSet<>(configuration.enabledTests());
@@ -505,21 +479,17 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                 }
             }
 
-            synchronized (groups) {
-                enabledGroups.addAll(groups.values().stream().filter(Group::isEnabledByDefault).toList());
-            }
+            enabledGroups.addAll(groups.values().stream().filter(Group::isEnabledByDefault).toList());
             final Set<Test> groupTestsEnabledByDefault = enabledGroups.stream().flatMap(it -> it.resolveAll().stream()).collect(Collectors.toSet());
 
             isEnabledByDefault = isEnabledByDefault.or(it -> enabledTests.contains(it.id()));
             isEnabledByDefault = isEnabledByDefault.or(groupTestsEnabledByDefault::contains);
 
-            synchronized (tests) {
-                for (final Test test : tests.values()) {
-                    if (isEnabledByDefault.test(test)) {
-                        enable(test.id());
-                    }
-                    setStatus(test.id(), new Test.Status(Test.Result.NOT_PROCESSED, ""));
+            for (final Test test : tests.values()) {
+                if (isEnabledByDefault.test(test)) {
+                    enable(test.id());
                 }
+                setStatus(test.id(), new Test.Status(Test.Result.NOT_PROCESSED, ""));
             }
         }
     }
