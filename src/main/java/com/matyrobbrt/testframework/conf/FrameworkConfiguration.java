@@ -1,6 +1,7 @@
 package com.matyrobbrt.testframework.conf;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
@@ -13,6 +14,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +41,7 @@ public record FrameworkConfiguration(
         private int commandRequiredPermission = Commands.LEVEL_GAMEMASTERS;
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
-        private TestCollector testCollector = cnt -> List.of();
+        private TestCollector testCollector = FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class);
         private @Nullable GroupNameCollector<?> groupNameCollector;
 
         private @Nullable Supplier<ClientConfiguration> clientConfiguration;
@@ -82,6 +84,12 @@ public record FrameworkConfiguration(
             return this;
         }
 
+        public <T extends Annotation> Builder groupNameCollector(@Nullable GroupNameCollector<T> nameCollector) {
+            this.groupNameCollector = nameCollector;
+            return this;
+        }
+
+        @ParametersAreNonnullByDefault
         public <T extends Annotation> Builder groupNameCollector(Class<T> annotation, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault) {
             this.groupNameCollector = new GroupNameCollector<>(annotation, Type.getType(annotation), nameGetter, isEnabledByDefault);
             return this;
