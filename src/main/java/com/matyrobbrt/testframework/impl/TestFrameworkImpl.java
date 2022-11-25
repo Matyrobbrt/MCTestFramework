@@ -231,7 +231,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         final BiFunction<LiteralArgumentBuilder<CommandSourceStack>, Boolean, LiteralArgumentBuilder<CommandSourceStack>> commandEnabling = (stack, enabling) ->
                 stack.requires(it -> it.hasPermission(configuration.commandRequiredPermission()))
                     .then(argument("id", StringArgumentType.greedyString())
-                            .suggests(helper.suggestGroupable(it -> !(it instanceof Test test) || tests.isEnabled(test.id())))
+                            .suggests(helper.suggestGroupable(it -> !(it instanceof Test test) || tests.isEnabled(test.id()) != enabling))
                             .executes(ctx -> {
                                 final String id = StringArgumentType.getString(ctx, "id");
                                 helper.parseGroupable(ctx.getSource(), id, group -> {

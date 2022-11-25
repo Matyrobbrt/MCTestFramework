@@ -8,6 +8,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -27,7 +28,7 @@ public abstract class AbstractTest implements Test {
         id = marker.value();
         enabledByDefault = marker.enabledByDefault();
         visuals = new Visuals(
-                Component.literal(marker.title().isBlank() ? id : marker.title()),
+                Component.literal(marker.title().isBlank() ? String.join(" ", Stream.of(id.split("_")).map(StringUtils::capitalize).toList()) : marker.title()),
                 Stream.of(marker.description()).<Component>map(Component::literal).toList()
         );
         groups.addAll(List.of(marker.groups()));
@@ -37,6 +38,11 @@ public abstract class AbstractTest implements Test {
     public void init(TestFramework framework) {
         this.framework = framework;
     }
+
+    @Override
+    public void onDisabled() {}
+    @Override
+    public void onEnabled(EventListenerGroup buses) {}
 
     @Override
     public String id() {
