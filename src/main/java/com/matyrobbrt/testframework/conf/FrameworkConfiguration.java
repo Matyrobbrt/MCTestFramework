@@ -24,7 +24,7 @@ import java.util.function.Supplier;
 public record FrameworkConfiguration(
         ResourceLocation id, boolean clientSynced, boolean modifiableByClients, int commandRequiredPermission,
         SimpleChannel networkingChannel, List<String> enabledTests, @Nullable Supplier<ClientConfiguration> clientConfiguration,
-        TestCollector testCollector, @Nullable GroupNameCollector<?> groupNameCollector
+        TestCollector testCollector, @Nullable FrameworkConfiguration.GroupConfigurationCollector<?> groupConfigurationCollector
 ) {
     public static Builder builder(ResourceLocation id) {
         return new Builder(id);
@@ -42,7 +42,7 @@ public record FrameworkConfiguration(
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
         private TestCollector testCollector = FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class);
-        private @Nullable GroupNameCollector<?> groupNameCollector;
+        private @Nullable FrameworkConfiguration.GroupConfigurationCollector<?> groupConfigurationCollector;
 
         private @Nullable Supplier<ClientConfiguration> clientConfiguration;
 
@@ -84,14 +84,14 @@ public record FrameworkConfiguration(
             return this;
         }
 
-        public <T extends Annotation> Builder groupNameCollector(@Nullable GroupNameCollector<T> nameCollector) {
-            this.groupNameCollector = nameCollector;
+        public <T extends Annotation> Builder groupConfigurationCollector(@Nullable FrameworkConfiguration.GroupConfigurationCollector<T> collector) {
+            this.groupConfigurationCollector = collector;
             return this;
         }
 
         @ParametersAreNonnullByDefault
-        public <T extends Annotation> Builder groupNameCollector(Class<T> annotation, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault) {
-            this.groupNameCollector = new GroupNameCollector<>(annotation, Type.getType(annotation), nameGetter, isEnabledByDefault);
+        public <T extends Annotation> Builder groupConfigurationCollector(Class<T> annotation, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault, Function<T, String[]> parents) {
+            this.groupConfigurationCollector = new GroupConfigurationCollector<>(annotation, Type.getType(annotation), nameGetter, isEnabledByDefault, parents);
             return this;
         }
 
@@ -104,7 +104,7 @@ public record FrameworkConfiguration(
                             .simpleChannel() : networkingChannel;
             return new FrameworkConfiguration(
                     id, clientSynced, modifiableByClients, commandRequiredPermission,
-                    channel, enabledTests, clientConfiguration, testCollector, groupNameCollector
+                    channel, enabledTests, clientConfiguration, testCollector, groupConfigurationCollector
             );
         }
     }
@@ -125,13 +125,17 @@ public record FrameworkConfiguration(
     }
 
     @SuppressWarnings("unchecked")
-    public record GroupNameCollector<T extends Annotation>(Class<T> annotation, Type asmType, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault) {
+    public record GroupConfigurationCollector<T extends Annotation>(Class<T> annotation, Type asmType, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault, Function<T, String[]> parents) {
         public Component getName(Object o) {
             return nameGetter.apply((T) o);
         }
 
         public boolean isEnabledByDefault(Object o) {
             return isEnabledByDefault.apply((T) o);
+        }
+
+        public String[] getParents(Object o) {
+            return parents.apply((T) o);
         }
     }
 }

@@ -36,6 +36,7 @@ import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.server.command.EnumArgument;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -302,7 +303,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         final List<Test> collected = collectTests(container);
         logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
         collected.forEach(tests()::register);
-        collectGroupNames(container);
+        collectGroupConfig(container);
 
         modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
 
@@ -311,18 +312,21 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
     }
 
-    private void collectGroupNames(ModContainer container) {
-        if (configuration.groupNameCollector() == null) return;
+    private void collectGroupConfig(ModContainer container) {
+        if (configuration.groupConfigurationCollector() == null) return;
         container.getModInfo().getOwningFile().getFile().getScanResult()
-                .getAnnotations().stream().filter(it -> configuration.groupNameCollector().asmType().equals(it.annotationType()))
+                .getAnnotations().stream().filter(it -> configuration.groupConfigurationCollector().asmType().equals(it.annotationType()))
                 .forEach(LamdbaExceptionUtils.rethrowConsumer(annotationData -> {
                     final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
                     final Field field = clazz.getDeclaredField(annotationData.memberName());
                     final String groupId = (String)field.get(null);
-                    final Annotation annotation = field.getAnnotation(configuration.groupNameCollector().annotation());
+                    final Annotation annotation = field.getAnnotation(configuration.groupConfigurationCollector().annotation());
                     final Group group = tests().getOrCreateGroup(groupId);
-                    group.setTitle(configuration.groupNameCollector().getName(annotation));
-                    group.setEnabledByDefault(configuration.groupNameCollector().isEnabledByDefault(annotation));
+                    group.setTitle(configuration.groupConfigurationCollector().getName(annotation));
+                    group.setEnabledByDefault(configuration.groupConfigurationCollector().isEnabledByDefault(annotation));
+                    for (final String parent : configuration.groupConfigurationCollector().getParents(annotation)) {
+                        tests().getOrCreateGroup(parent).add(group);
+                    }
                 }));
     }
 

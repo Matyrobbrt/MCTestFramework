@@ -29,6 +29,9 @@ public class ExampleMod {
     @TestGroup(name = "Level-Related Events", enabledByDefault = true)
     public static final String LEVEL_RELATED_EVENTS = "events.level_related";
 
+    @TestGroup(name = "Blocks", parents = LEVEL_RELATED_EVENTS)
+    public static final String BLOCK_TESTS = "blocks";
+
     public ExampleMod() {
         final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()
@@ -37,7 +40,7 @@ public class ExampleMod {
                         .build())
                 .allowClientModifications().syncToClients()
                 .testCollector(FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class))
-                .groupNameCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault)
+                .groupConfigurationCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault, TestGroup::parents)
                 .build().create();
         framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());
 

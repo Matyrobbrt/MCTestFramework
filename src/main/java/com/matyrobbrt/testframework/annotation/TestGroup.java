@@ -20,4 +20,10 @@ public @interface TestGroup {
      * {@return if the tests in this group are enabled by default}
      */
     boolean enabledByDefault() default false;
+
+    /**
+     * Note: group parents are also computed using {@code id().split(".")}.<br>
+     * {@return the parents of this group}
+     */
+    String[] parents() default {};
 }
