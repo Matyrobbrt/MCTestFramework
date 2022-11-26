@@ -47,7 +47,7 @@ public final class TestsOverlay implements IGuiOverlay {
     public void render(ForgeGui gui, PoseStack poseStack, float partialTick, int screenWidth, int screenHeight) {
         if (!enabled.getAsBoolean()) return;
 
-        final List<Test> enabled = impl.tests().enabled().toList();
+        List<Test> enabled = impl.tests().enabled().collect(Collectors.toCollection(ArrayList::new));
         if (enabled.isEmpty()) return;
 
         final Font font = gui.getFont();
@@ -56,9 +56,9 @@ public final class TestsOverlay implements IGuiOverlay {
         int x = startX, y = startY;
         int maxX = x;
 
-        final List<Runnable> renderingQueue = new ArrayList<>();
+        final CommitBasedList<Runnable> renderingQueue = new CommitBasedList<>(new ArrayList<>());
         final Component title = Component.literal("Tests overlay for ").append(Component.literal(impl.id().toString()).withStyle(ChatFormatting.AQUA));
-        renderingQueue.add(withXY(x, y, (x$, y$) ->  Screen.drawString(poseStack, font, title, x$, y$, 0xffffff)));
+        renderingQueue.addDirectly(withXY(x, y, (x$, y$) ->  Screen.drawString(poseStack, font, title, x$, y$, 0xffffff)));
         y += font.lineHeight + 5;
         maxX += font.width(title);
 
@@ -70,13 +70,14 @@ public final class TestsOverlay implements IGuiOverlay {
                     .filter(it -> impl.tests().getStatus(it.id()).result() == Test.Result.PASSED)
                     .collect(Collectors.toMap(Function.identity(), lastRenderedTests::indexOf));
 
-            final List<Test> actuallyToRender = new ArrayList<>(MAX_DISPLAYED);
+            List<Test> actuallyToRender = new ArrayList<>(MAX_DISPLAYED);
+            List<Test> finalActuallyToRender = actuallyToRender;
             for (int i = 0; i < MAX_DISPLAYED; i++) actuallyToRender.add(null);
-            lastCompleted.forEach((test, index) -> actuallyToRender.set(index, test));
+            lastCompleted.forEach((test, index) -> finalActuallyToRender.set(index, test));
             enabled.stream()
                     .filter(it -> impl.tests().getStatus(it.id()).result() != Test.Result.PASSED)
                     .limit(MAX_DISPLAYED - lastCompleted.size())
-                    .forEach(it -> actuallyToRender.set(actuallyToRender.indexOf(null), it));
+                    .forEach(it -> finalActuallyToRender.set(finalActuallyToRender.indexOf(null), it));
 
             int nullIndex;
             while ((nullIndex = actuallyToRender.indexOf(null)) >= 0) {
@@ -85,6 +86,9 @@ public final class TestsOverlay implements IGuiOverlay {
 
             for (final Test test : List.copyOf(actuallyToRender)) {
                 // If we find one that isn't passed, we need to start fading it out
+                renderingQueue.push();
+                int lastY = y;
+                int lastMaxX = maxX;
                 if (impl.tests().getStatus(test.id()).result() == Test.Result.PASSED) {
                     final float fade = fading.computeIfAbsent(test, it -> 1f) - 0.005f;
                     if (fade <= 0) {
@@ -98,16 +102,32 @@ public final class TestsOverlay implements IGuiOverlay {
                         RenderSystem.defaultBlendFunc();
                     });
 
-                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, ((int)(fade * 255f) << 24) | 0xffffff, renderingQueue);
+                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, ((int)(fade * 255f) << 24) | 0xffffff, renderingQueue.currentProgress());
                     y = xy.y() + 5;
                     maxX = Math.max(maxX, xy.x());
 
                     renderingQueue.add(RenderSystem::disableBlend);
                     fading.put(test, fade);
                 } else {
-                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue);
+                    final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue.currentProgress());
                     y = xy.y() + 5;
                     maxX = Math.max(maxX, xy.x());
+                }
+
+                if (y >= screenHeight) {
+                    int endIndex = actuallyToRender.indexOf(test) + 1;
+                    if (y > screenHeight) {
+                        endIndex--;
+                        renderingQueue.revert();
+                        y = lastY;
+                        maxX = lastMaxX;
+                    } else {
+                        renderingQueue.popAndCommit();
+                    }
+                    actuallyToRender = actuallyToRender.subList(0, endIndex);
+                    break;
+                } else {
+                    renderingQueue.popAndCommit();
                 }
             }
 
@@ -115,9 +135,28 @@ public final class TestsOverlay implements IGuiOverlay {
             lastRenderedTests.addAll(actuallyToRender);
         } else {
             for (final Test test : enabled) {
-                final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue);
+                int lastY = y;
+                int lastMaxX = maxX;
+                renderingQueue.push();
+                final XY xy = renderTest(gui, font, test, poseStack, maxWidth, x, y, 0xffffff, renderingQueue.currentProgress());
                 y = xy.y() + 5;
                 maxX = Math.max(maxX, xy.x());
+
+                if (y >= screenHeight) {
+                    int endIndex = enabled.indexOf(test) + 1;
+                    if (y > screenHeight) {
+                        renderingQueue.revert();
+                        y = lastY;
+                        maxX = lastMaxX;
+                        endIndex--;
+                    } else {
+                        renderingQueue.popAndCommit();
+                    }
+                    enabled = enabled.subList(0, endIndex);
+                    break;
+                } else {
+                    renderingQueue.popAndCommit();
+                }
             }
             lastRenderedTests.clear();
             lastRenderedTests.addAll(enabled);
@@ -129,7 +168,7 @@ public final class TestsOverlay implements IGuiOverlay {
         RenderSystem.defaultBlendFunc();
 
         renderTilledTexture(poseStack, BG_TEXTURE, startX - 4, startY - 4, (maxX - startX) + 4 + 4, (y - startY) + 4, 4, 4, 256, 256, .5f);
-        renderingQueue.forEach(Runnable::run);
+        renderingQueue.get().forEach(Runnable::run);
 
         RenderSystem.disableBlend();
     }
@@ -153,7 +192,7 @@ public final class TestsOverlay implements IGuiOverlay {
         }));
         x += 11;
 
-        final Component title = statusColoured(test.visuals().title(), status).append(":");
+        final Component title = statusColoured(test.visuals().title(), status);
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, title, x$, y$, colour)));
 
         final List<FormattedCharSequence> extras = new ArrayList<>();
