@@ -16,7 +16,11 @@ import net.minecraftforge.registries.RegistryObject;
 
 @TestHolder(
         value = "sticky_block",
-        groups = ExampleMod.BLOCK_TESTS
+        groups = ExampleMod.BLOCK_TESTS,
+        description = {
+                "Tests if blue block is sticky, and red block is considered slime.",
+                "Tests if blue block does not stick to red block.",
+        }
 )
 public class StickyBlockTest extends AbstractTest {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, "examplemod");

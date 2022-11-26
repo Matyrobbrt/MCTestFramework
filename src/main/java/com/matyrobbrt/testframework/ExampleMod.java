@@ -29,6 +29,8 @@ public class ExampleMod {
     @TestGroup(name = "Level-Related Events", enabledByDefault = true)
     public static final String LEVEL_RELATED_EVENTS = "events.level_related";
 
+    @TestGroup(name = "Client Tests")
+    public static final String CLIENT_TESTS = "client";
     @TestGroup(name = "Blocks", parents = LEVEL_RELATED_EVENTS)
     public static final String BLOCK_TESTS = "blocks";
 
