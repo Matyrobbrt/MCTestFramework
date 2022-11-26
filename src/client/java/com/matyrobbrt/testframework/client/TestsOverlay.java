@@ -13,7 +13,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
@@ -116,12 +115,15 @@ public final class TestsOverlay implements IGuiOverlay {
 
                 if (y >= screenHeight) {
                     int endIndex = actuallyToRender.indexOf(test) + 1;
+                    // If the y is greater than the height, don't render this test at all
                     if (y > screenHeight) {
                         endIndex--;
                         renderingQueue.revert();
                         y = lastY;
                         maxX = lastMaxX;
-                    } else {
+                    }
+                    // Otherwise, break and render this test
+                    else {
                         renderingQueue.popAndCommit();
                     }
                     actuallyToRender = actuallyToRender.subList(0, endIndex);
@@ -144,12 +146,15 @@ public final class TestsOverlay implements IGuiOverlay {
 
                 if (y >= screenHeight) {
                     int endIndex = enabled.indexOf(test) + 1;
+                    // If the y is greater than the height, don't render this test at all
                     if (y > screenHeight) {
                         renderingQueue.revert();
                         y = lastY;
                         maxX = lastMaxX;
                         endIndex--;
-                    } else {
+                    }
+                    // Otherwise, break and render this test
+                    else {
                         renderingQueue.popAndCommit();
                     }
                     enabled = enabled.subList(0, endIndex);
