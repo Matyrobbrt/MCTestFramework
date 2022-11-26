@@ -28,7 +28,7 @@ public abstract class AbstractTest implements Test {
         id = marker.value();
         enabledByDefault = marker.enabledByDefault();
         visuals = new Visuals(
-                Component.literal(marker.title().isBlank() ? String.join(" ", Stream.of(id.split("_")).map(StringUtils::capitalize).toList()) : marker.title()),
+                Component.literal(marker.title().isBlank() ? TestFrameworkImpl.capitaliseWords(id(), "_") : marker.title()),
                 Stream.of(marker.description()).<Component>map(Component::literal).toList()
         );
         groups.addAll(List.of(marker.groups()));

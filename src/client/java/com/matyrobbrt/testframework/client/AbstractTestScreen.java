@@ -1,42 +1,43 @@
 package com.matyrobbrt.testframework.client;
 
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimaps;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Matrix4f;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public abstract class TestsManagerScreen extends Screen {
+public abstract class AbstractTestScreen extends Screen {
     protected final TestFrameworkInternal framework;
-    public TestsManagerScreen(Component title, TestFrameworkInternal framework) {
+    public AbstractTestScreen(Component title, TestFrameworkInternal framework) {
         super(title);
         this.framework = framework;
     }
@@ -57,10 +58,9 @@ public abstract class TestsManagerScreen extends Screen {
                             .sorted(Comparator.comparing(gr -> gr.title().getString()))
                             .map(GroupEntry::new).toList()
                     :
-                    tests.get()
-                    .filter(it -> it.visuals().title().getString().toLowerCase(Locale.ROOT).contains(search))
-                    .sorted(Comparator.comparing(test -> test.visuals().title().getString()))
-                    .map(TestEntry::new).toList();
+                    withGroups(tests.get()
+                            .filter(it -> it.visuals().title().getString().toLowerCase(Locale.ROOT).contains(search))
+                            .sorted(Comparator.comparing(test -> test.visuals().title().getString())), groups).toList();
         }
 
         public void resetRows(String search) {
@@ -91,6 +91,35 @@ public abstract class TestsManagerScreen extends Screen {
                     entry.renderTooltips(poseStack, mouseX, mouseY);
                 }
             }
+        }
+
+        private Stream<? extends AbstractTestScreen.GroupableList.Entry> withGroups(Stream<Test> tests, List<Group> groups) {
+            final Group parent = groups.size() == 1 ? groups.get(0) : null;
+            final ListMultimap<String, Test> withParent = tests.collect(Multimaps.toMultimap(
+                    test -> test.groups().size() < 1 ? "ungrouped" : test.groups().get(0),
+                    Function.identity(),
+                    () -> Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new)
+            ));
+            final Predicate<String> isUngrouped = it -> it.equals("ungrouped") || (parent != null && it.equals(parent.id()));
+            final Comparator<String> stringComparator = Comparator.naturalOrder();
+            return withParent.asMap().entrySet()
+                    .stream()
+                    .<Map.Entry<Group, Collection<Test>>>map(entry -> new AbstractMap.SimpleEntry<>(framework.tests().getOrCreateGroup(entry.getKey()), entry.getValue()))
+                    .sorted((o1, o2) -> {
+                        if (isUngrouped.test(o1.getKey().id())) return -1;
+                        else if (isUngrouped.test(o2.getKey().id())) return 1;
+                        return stringComparator.compare(o1.getKey().title().getString(), o2.getKey().title().getString());
+                    })
+                    .flatMap(entry -> {
+                        if (isUngrouped.test(entry.getKey().id())) {
+                            return entry.getValue().stream().map(TestEntry::new);
+                        } else {
+                            return Stream.concat(
+                                    Stream.of(new GroupEntry(entry.getKey(), true)),
+                                    entry.getValue().stream().map(TestEntry::new)
+                            );
+                        }
+                    });
         }
 
         protected abstract sealed class Entry extends ObjectSelectionList.Entry<Entry> permits TestEntry, GroupEntry {
@@ -190,25 +219,40 @@ public abstract class TestsManagerScreen extends Screen {
         protected final class GroupEntry extends Entry {
             private final Group group;
             private final Button browseButton;
+            private final boolean isTitle;
 
             private GroupEntry(Group group) {
+                this(group, false);
+            }
+
+            private GroupEntry(Group group, boolean isTitle) {
                 this.group = group;
+                this.isTitle = isTitle;
                 this.browseButton = new Button(0, 0, 50, 12, Component.literal("Browse"), button -> openBrowseGUI());
+                if (isTitle) {
+                    browseButton.active = false;
+                    browseButton.visible = false;
+                }
             }
 
             @Override
             public void render(PoseStack pPoseStack, int pIndex, int pTop, int pLeft, int pWidth, int pHeight, int pMouseX, int pMouseY, boolean pIsMouseOver, float pPartialTick) {
-                Screen.drawString(pPoseStack, font, getTitle(), pLeft + 11, pTop + 2, 0xffffff);
-                this.browseButton.x = pLeft + pWidth - 53;
-                this.browseButton.y = pTop - 1;
-                pPoseStack.pushPose();
-                pPoseStack.translate(0, 0, 100);
-                browseButton.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
-                pPoseStack.popPose();
+                if (isTitle) {
+                    Screen.drawCenteredString(pPoseStack, font, getTitle(), pLeft + pWidth / 2, pTop + 2, 0xffffff);
+                } else {
+                    Screen.drawString(pPoseStack, font, getTitle(), pLeft + 11, pTop + 2, 0xffffff);
+                    this.browseButton.x = pLeft + pWidth - 53;
+                    this.browseButton.y = pTop - 1;
+                    pPoseStack.pushPose();
+                    pPoseStack.translate(0, 0, 100);
+                    browseButton.render(pPoseStack, pMouseX, pMouseY, pPartialTick);
+                    pPoseStack.popPose();
+                }
             }
 
             @Override
             protected void renderTooltips(PoseStack poseStack, int mouseX, int mouseY) {
+                if (isTitle) return;
                 final List<Test> all = group.resolveAll();
                 final int enabledCount = (int) all.stream().filter(it -> framework.tests().isEnabled(it.id())).count();
                 if (enabledCount == all.size()) {
@@ -226,6 +270,8 @@ public abstract class TestsManagerScreen extends Screen {
 
             @Override
             public boolean mouseClicked(double pMouseX, double pMouseY, int pButton) {
+                if (isTitle) return false;
+
                 if (browseButton.isMouseOver(pMouseX, pMouseY)) return browseButton.mouseClicked(pMouseX, pMouseY, pButton);
                 if (pButton == GLFW.GLFW_MOUSE_BUTTON_LEFT && (Screen.hasShiftDown() || Screen.hasControlDown())) {
                     openBrowseGUI();
@@ -235,7 +281,7 @@ public abstract class TestsManagerScreen extends Screen {
             }
 
             private void openBrowseGUI() {
-                Minecraft.getInstance().pushGuiLayer(new GroupTestsManagerScreen(
+                Minecraft.getInstance().pushGuiLayer(new TestScreen(
                         Component.literal("Tests of group ").append(getTitle()),
                         framework, List.of(group)
                 ) {

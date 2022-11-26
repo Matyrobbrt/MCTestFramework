@@ -19,7 +19,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class GroupTestsManagerScreen extends TestsManagerScreen {
+public class TestScreen extends AbstractTestScreen {
     protected FocusedEditBox activeTextField;
     protected FocusedEditBox searchTextField;
 
@@ -29,17 +29,25 @@ public class GroupTestsManagerScreen extends TestsManagerScreen {
     protected CycleButton<Boolean> showAsGroup;
     protected CycleButton<FilterMode> filterMode;
 
-    public GroupTestsManagerScreen(Component title, TestFrameworkInternal framework, List<Group> groups) {
+    public TestScreen(Component title, TestFrameworkInternal framework, List<Group> groups) {
         super(title, framework);
         this.groups = groups;
     }
 
+    private static boolean isGroup = true;
     @Override
     protected void init() {
-        final Runnable reloader = () -> groupableList.resetRows(searchTextField.getValue());
+        final Runnable reloader = () -> {
+            groupableList.resetRows(searchTextField.getValue());
+            this.groupableList.setScrollAmount(0);
+        };
         this.showAsGroup = addRenderableWidget(CycleButton.booleanBuilder(Component.literal("Show groups"),
                 Component.literal("Show all tests"))
-                .displayOnlyValue().create(20, this.height - 26, 100, 20, Component.empty(), (pCycleButton, pValue) -> reloader.run()));
+                .displayOnlyValue().withInitialValue(isGroup)
+                .create(20, this.height - 26, 100, 20, Component.empty(), (pCycleButton, pValue) -> {
+                    reloader.run();
+                    isGroup = pValue;
+                }));
         this.filterMode = addRenderableWidget(CycleButton.<FilterMode>builder(mode -> mode.name)
                 .withValues(FilterMode.values()).create((this.width - 160) / 2 , this.height - 26, 150, 20, Component.literal("Filter"), (pCycleButton, pValue) -> reloader.run()));
 
@@ -109,10 +117,10 @@ public class GroupTestsManagerScreen extends TestsManagerScreen {
         protected void onFocusedChanged(boolean focused) {
             super.onFocusedChanged(focused);
             if (focused) {
-                if (GroupTestsManagerScreen.this.activeTextField != null && GroupTestsManagerScreen.this.activeTextField != this) {
-                    GroupTestsManagerScreen.this.activeTextField.setFocused(false);
+                if (TestScreen.this.activeTextField != null && TestScreen.this.activeTextField != this) {
+                    TestScreen.this.activeTextField.setFocused(false);
                 }
-                GroupTestsManagerScreen.this.activeTextField = this;
+                TestScreen.this.activeTextField = this;
             }
         }
     }

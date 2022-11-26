@@ -1,5 +1,6 @@
 package com.matyrobbrt.testframework.testing;
 
+import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.AbstractTest;
@@ -13,7 +14,10 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-@TestHolder("sticky_block")
+@TestHolder(
+        value = "sticky_block",
+        groups = ExampleMod.BLOCK_TESTS
+)
 public class StickyBlockTest extends AbstractTest {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, "examplemod");
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "examplemod");

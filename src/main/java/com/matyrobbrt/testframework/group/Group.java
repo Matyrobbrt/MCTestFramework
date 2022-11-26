@@ -1,6 +1,7 @@
 package com.matyrobbrt.testframework.group;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -14,7 +15,7 @@ public final class Group implements Groupable {
     public Group(String id, List<Groupable> entries) {
         this.id = id;
         this.entries = entries;
-        this.title = Component.literal(id);
+        this.title = Component.literal(TestFrameworkImpl.capitaliseWords(id(), "\\."));
     }
 
     public String id() {
