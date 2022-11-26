@@ -1,8 +1,8 @@
 plugins {
+    id 'java'
+    id 'java-library'
     id 'eclipse'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '5.1.+'
-    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
 }
 
 version = '1.0'
@@ -13,114 +13,12 @@ archivesBaseName = 'testframework'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 sourceSets {
-    client {
-        compileClasspath += main.output
-        compileClasspath += main.compileClasspath
-    }
+    client
     main {
-        resources {
-            srcDir 'src/generated/resources'
-        }
+        runtimeClasspath += client.output
     }
 }
-
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
-minecraft {
-    mappings channel: 'parchment', version: '2022.11.20-1.19.2'
-
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
-
-    runs {
-        client {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.console.level', 'debug'
-
-            property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
-        }
-
-        server {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.markers', 'REGISTRIES'
-
-            property 'forge.logging.console.level', 'debug'
-
-            property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
-        }
-
-        gameTestServer {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.markers', 'REGISTRIES'
-
-            property 'forge.logging.console.level', 'debug'
-
-            property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
-        }
-
-        data {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.markers', 'REGISTRIES'
-
-            property 'forge.logging.console.level', 'debug'
-
-            args '--mod', 'examplemod', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
-        }
-    }
-}
-
-repositories {
-}
-
-dependencies {
-    minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
-}
-
-jar {
-    manifest {
-        attributes([
-                "Specification-Title"     : "examplemod",
-                "Specification-Vendor"    : "examplemodsareus",
-                "Specification-Version"   : "1", // We are version 1 of ourselves
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : project.jar.archiveVersion,
-                "Implementation-Vendor"   : "examplemodsareus",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-}
-
-jar.finalizedBy('reobfJar')
 
 publishing {
     publications {
@@ -137,4 +35,122 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+jar {
+    from sourceSets.client.output
+    manifest {
+        attributes([
+                "Specification-Title"     : "examplemod",
+                "Specification-Vendor"    : "examplemodsareus",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : "examplemodsareus",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+if (rootProject === project && project.name == 'testframework') {
+    plugins {
+        id 'net.minecraftforge.gradle' version '5.1.+'
+        id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    }
+
+    minecraft {
+        mappings channel: 'parchment', version: '2022.11.20-1.19.2'
+
+        // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
+
+        runs {
+            client {
+                workingDirectory project.file('run')
+
+                property 'forge.logging.console.level', 'debug'
+
+                property 'forge.enabledGameTestNamespaces', 'examplemod'
+
+                mods {
+                    examplemod {
+                        source sourceSets.main
+                        source sourceSets.client
+                    }
+                }
+            }
+
+            server {
+                workingDirectory project.file('run')
+
+                property 'forge.logging.markers', 'REGISTRIES'
+
+                property 'forge.logging.console.level', 'debug'
+
+                property 'forge.enabledGameTestNamespaces', 'examplemod'
+
+                mods {
+                    examplemod {
+                        source sourceSets.main
+                        source sourceSets.client
+                    }
+                }
+            }
+
+            gameTestServer {
+                workingDirectory project.file('run')
+
+                property 'forge.logging.markers', 'REGISTRIES'
+
+                property 'forge.logging.console.level', 'debug'
+
+                property 'forge.enabledGameTestNamespaces', 'examplemod'
+
+                mods {
+                    examplemod {
+                        source sourceSets.main
+                        source sourceSets.client
+                    }
+                }
+            }
+
+            data {
+                workingDirectory project.file('run')
+
+                property 'forge.logging.markers', 'REGISTRIES'
+
+                property 'forge.logging.console.level', 'debug'
+
+                args '--mod', 'examplemod', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+
+                mods {
+                    examplemod {
+                        source sourceSets.main
+                        source sourceSets.client
+                    }
+                }
+            }
+        }
+    }
+
+    dependencies {
+        minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
+    }
+
+    jar.finalizedBy('reobfJar')
+} else {
+    sourceSets {
+        main {
+            compileClasspath += project(':forge').sourceSets.main.compileClasspath
+        }
+    }
+    dependencies {
+        implementation(project(':forge')) {
+              exclude group: 'net.minecraft'
+        }
+    }
+}
+
+sourceSets.client {
+    compileClasspath += sourceSets.main.output
+    compileClasspath += sourceSets.main.compileClasspath
 }

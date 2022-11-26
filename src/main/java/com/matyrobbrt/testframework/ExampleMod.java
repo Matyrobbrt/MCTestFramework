@@ -35,6 +35,7 @@ public class ExampleMod {
     public static final String BLOCK_TESTS = "blocks";
 
     public ExampleMod() {
+        if (true) return;
         final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()
                         .toggleOverlayKey(GLFW.GLFW_KEY_J)

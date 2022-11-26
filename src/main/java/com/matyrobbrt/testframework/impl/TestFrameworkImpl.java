@@ -466,10 +466,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         final LoggerConfig loggerConfig = getLoggerConfiguration(config, logger.getName());
 
         final RollingRandomAccessFileAppender appender = RollingRandomAccessFileAppender.newBuilder()
-                .setName("TestFramework " + id + " log")
+                .withName("TestFramework " + id + " log")
                 .withFileName("logs/tests/" + id.toString().replace(":", "_") + ".log")
                 .withFilePattern("logs/%d{yyyy-MM-dd}-%i.log.gz")
-                .setLayout(PatternLayout.newBuilder()
+                .withLayout(PatternLayout.newBuilder()
                         .withPattern("[%d{ddMMMyyyy HH:mm:ss}] [%logger]: %minecraftFormatting{%msg}{strip}%n%xEx")
                         .build()
                 )
