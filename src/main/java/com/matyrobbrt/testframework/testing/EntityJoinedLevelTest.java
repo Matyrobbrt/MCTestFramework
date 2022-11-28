@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.fml.common.Mod;

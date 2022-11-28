@@ -110,6 +110,19 @@ public interface Test extends Groupable {
             void unregisterAll();
 
             /**
+             * Add a consumer listener with the specified {@link EventPriority} and potentially cancelled events. <br>
+             * Use this method when one of the other methods fails to determine the concrete {@link Event} subclass that is
+             * intended to be subscribed to.
+             *
+             * @param priority         the priority of the listener
+             * @param receiveCancelled indicate if this listener should receive events that have been {@link Cancelable} cancelled
+             * @param eventType        the concrete {@link Event} subclass to subscribe to
+             * @param consumer         callback to invoke when a matching event is received
+             * @param <T>              the {@link Event} subclass to listen for
+             */
+            <T extends Event> void addListener(EventPriority priority, boolean receiveCancelled, Class<T> eventType, Consumer<T> consumer);
+
+            /**
              * Add a consumer listener with the specified {@link EventPriority} and potentially cancelled events.
              *
              * @param priority         the priority of the listener
@@ -133,11 +146,13 @@ public interface Test extends Groupable {
 
     /**
      * Represents the status of a test.
-     * @param result the result
+     *
+     * @param result  the result
      * @param message the message, providing additional context if the test failed
      */
     record Status(Result result, String message) {
         public static final Status DEFAULT = new Status(Result.NOT_PROCESSED, "");
+
         @Override
         public String toString() {
             if (message.isBlank()) {

@@ -359,18 +359,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                         .decoder(buf -> decoder.apply(TestFrameworkImpl.this, buf))
                         .add();
             }
-
-            <P extends TFPacket> void registerNetworkThread(Class<P> pkt, BiFunction<TestFrameworkInternal, FriendlyByteBuf, P> decoder) {
-                channel.messageBuilder(pkt, id++)
-                        .consumerNetworkThread((packet, contextSupplier) -> {
-                            final var ctx = contextSupplier.get();
-                            packet.handle(ctx);
-                            ctx.setPacketHandled(true);
-                        })
-                        .encoder(TFPacket::encode)
-                        .decoder(buf -> decoder.apply(TestFrameworkImpl.this, buf))
-                        .add();
-            }
         }
 
         final Registrar registrar = new Registrar(channel);
@@ -457,8 +445,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     }
 
     /**
-     * Set the LOGGER instance in this class to only write to logs/curletest.log.
-     * Log4J is annoying and requires manual initialization and preparation.
+     * Set the {@link #logger} to only write to logs/tests/{@code id}.log
      */
     private void prepareLogger() {
         final LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
@@ -504,7 +491,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     }
 
     public final class TestsImpl implements TestsInternal {
-        private final Map<String, Test> tests = Collections.synchronizedMap(new HashMap<>());
+        private final Map<String, Test> tests = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, EventListenerGroupImpl> collectors = new HashMap<>();
         private final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());

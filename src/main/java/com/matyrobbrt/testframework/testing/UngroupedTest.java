@@ -1,7 +1,7 @@
 package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingEvent;

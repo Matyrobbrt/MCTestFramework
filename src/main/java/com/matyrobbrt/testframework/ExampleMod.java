@@ -4,6 +4,7 @@ import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.conf.TestCollector;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
@@ -41,7 +42,9 @@ public class ExampleMod {
                         .openManagerKey(GLFW.GLFW_KEY_N)
                         .build())
                 .allowClientModifications().syncToClients()
-                .testCollector(FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class))
+                .testCollector(TestCollector.forClassesWithAnnotation(TestHolder.class)
+                        .and(TestCollector.forMethodsWithAnnotation(TestHolder.class))
+                        .and(TestCollector.eventTestMethodsWithAnnotation(TestHolder.class)))
                 .groupConfigurationCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault, TestGroup::parents)
                 .build().create();
         framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());

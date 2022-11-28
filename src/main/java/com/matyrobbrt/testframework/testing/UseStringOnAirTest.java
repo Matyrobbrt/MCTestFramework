@@ -2,7 +2,7 @@ package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;

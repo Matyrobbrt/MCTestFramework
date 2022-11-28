@@ -1,6 +1,6 @@
 package com.matyrobbrt.testframework.testing.rightclickblock;
 
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;

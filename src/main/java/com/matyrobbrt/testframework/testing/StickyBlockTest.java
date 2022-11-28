@@ -3,7 +3,7 @@ package com.matyrobbrt.testframework.testing;
 import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;

@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 
 public final class TestsOverlay implements IGuiOverlay {
     public static final int MAX_DISPLAYED = 5;
-    // TODO - this will need to be rendered with transparency instead of using an already-transparent texture
     public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background.png");
 
     private final TestFrameworkInternal impl;

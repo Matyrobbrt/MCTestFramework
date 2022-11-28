@@ -1,14 +1,17 @@
-package com.matyrobbrt.testframework.impl;
+package com.matyrobbrt.testframework.impl.test;
 
+import com.matyrobbrt.testframework.DynamicTest;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
+import com.matyrobbrt.testframework.annotation.ForEachTest;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.impl.HackyReflection;
+import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
+import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -25,12 +28,22 @@ public abstract class AbstractTest implements Test {
 
     protected AbstractTest() {
         final TestHolder marker = getClass().getAnnotation(TestHolder.class);
-        id = marker.value();
+        if (marker != null) {
+            configureFrom(HackyReflection.parentOrTopLevel(getClass()).getAnnotation(ForEachTest.class), marker);
+        }
+    }
+
+    protected void configureFrom(@Nullable ForEachTest parent, TestHolder marker) {
+        if (parent == null) parent = ForEachTest.DEFAULT;
+
+        id = parent.idPrefix() + marker.value();
         enabledByDefault = marker.enabledByDefault();
         visuals = new Visuals(
                 Component.literal(marker.title().isBlank() ? TestFrameworkImpl.capitaliseWords(id(), "_") : marker.title()),
                 Stream.of(marker.description()).<Component>map(Component::literal).toList()
         );
+
+        if (parent.groups().length > 0) groups.addAll(List.of(parent.groups()));
         groups.addAll(List.of(marker.groups()));
     }
 
@@ -84,11 +97,11 @@ public abstract class AbstractTest implements Test {
         framework.changeStatus(this, status, changer);
     }
 
-    protected final void fail(String message) {
+    protected void fail(String message) {
         updateStatus(new Status(Result.FAILED, message), null);
     }
 
-    protected final void pass() {
+    protected void pass() {
         updateStatus(new Status(Result.PASSED, ""), null);
     }
 
@@ -107,6 +120,47 @@ public abstract class AbstractTest implements Test {
                                             id(), Result.FAILED, player.getGameProfile().getName() + " denied seeing the effects of the test"
                                     ))
             ))));
+        }
+    }
+
+    public static abstract class Dynamic extends AbstractTest implements DynamicTest {
+        @Override
+        public TestFramework framework() {
+            return framework;
+        }
+
+        private final List<EnabledListener> enabledListeners = new ArrayList<>();
+        @Override
+        public void whenEnabled(EnabledListener whenEnabled) {
+            this.enabledListeners.add(whenEnabled);
+        }
+
+        private final List<Runnable> disabledListeners = new ArrayList<>();
+        @Override
+        public void whenDisabled(Runnable whenDisabled) {
+            this.disabledListeners.add(whenDisabled);
+        }
+
+        @Override
+        public void onEnabled(EventListenerGroup buses) {
+            super.onEnabled(buses);
+            enabledListeners.forEach(listener -> listener.onEnabled(buses));
+        }
+
+        @Override
+        public void onDisabled() {
+            super.onDisabled();
+            disabledListeners.forEach(Runnable::run);
+        }
+
+        @Override
+        public void fail(String message) {
+            DynamicTest.super.fail(message);
+        }
+
+        @Override
+        public void pass() {
+            DynamicTest.super.pass();
         }
     }
 }

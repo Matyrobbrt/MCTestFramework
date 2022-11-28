@@ -1,14 +1,11 @@
 package com.matyrobbrt.testframework.conf;
 
-import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
-import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import org.jetbrains.annotations.Nullable;
@@ -41,7 +38,7 @@ public record FrameworkConfiguration(
         private int commandRequiredPermission = Commands.LEVEL_GAMEMASTERS;
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
-        private TestCollector testCollector = FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class);
+        private TestCollector testCollector = TestCollector.forClassesWithAnnotation(TestHolder.class);
         private @Nullable FrameworkConfiguration.GroupConfigurationCollector<?> groupConfigurationCollector;
 
         private @Nullable Supplier<ClientConfiguration> clientConfiguration;
@@ -106,21 +103,6 @@ public record FrameworkConfiguration(
                     id, clientSynced, modifiableByClients, commandRequiredPermission,
                     channel, enabledTests, clientConfiguration, testCollector, groupConfigurationCollector
             );
-        }
-    }
-
-    @FunctionalInterface
-    public interface TestCollector {
-        List<Test> collect(ModContainer container);
-
-        static TestCollector withAnnotation(Class<? extends Annotation> annotation) {
-            final Type annType = Type.getType(annotation);
-            return container -> container.getModInfo().getOwningFile().getFile().getScanResult()
-                    .getAnnotations().stream().filter(it -> annType.equals(it.annotationType()))
-                    .map(LamdbaExceptionUtils.rethrowFunction(annotationData -> {
-                        final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
-                        return (Test) clazz.getDeclaredConstructor().newInstance();
-                    })).toList();
         }
     }
 

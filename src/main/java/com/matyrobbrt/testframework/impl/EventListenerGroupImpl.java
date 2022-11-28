@@ -39,8 +39,14 @@ class EventListenerGroupImpl implements Test.EventListenerGroup {
 
         @Override
         public void register(Object object) {
-            subscribers.add(object);
             bus.register(object);
+            subscribers.add(object);
+        }
+
+        @Override
+        public <T extends Event> void addListener(EventPriority priority, boolean receiveCancelled, Class<T> eventType, Consumer<T> consumer) {
+            bus.addListener(priority, receiveCancelled, eventType, consumer);
+            subscribers.add(consumer);
         }
 
         @Override
@@ -52,6 +58,7 @@ class EventListenerGroupImpl implements Test.EventListenerGroup {
         @Override
         public void unregisterAll() {
             subscribers.forEach(bus::unregister);
+            subscribers.clear();
         }
     }
 }
