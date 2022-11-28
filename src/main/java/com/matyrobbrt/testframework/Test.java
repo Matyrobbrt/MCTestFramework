@@ -1,7 +1,7 @@
 package com.matyrobbrt.testframework;
 
+import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.group.Groupable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -67,6 +68,14 @@ public interface Test extends Groupable {
     @Override
     default List<Test> resolveAll() {
         return List.of(this);
+    }
+
+    /**
+     * {@return the game test version of this test}
+     */
+    @Nullable
+    default GameTestData asGameTest() {
+        return null;
     }
 
     /**
@@ -177,6 +186,10 @@ public interface Test extends Groupable {
 
         public boolean passed() {
             return this == PASSED;
+        }
+
+        public boolean failed() {
+            return this == FAILED;
         }
     }
 

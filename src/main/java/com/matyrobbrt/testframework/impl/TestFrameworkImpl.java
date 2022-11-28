@@ -2,7 +2,9 @@ package com.matyrobbrt.testframework.impl;
 
 import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.group.Groupable;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
@@ -16,6 +18,9 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.gametest.framework.GameTestGenerator;
+import net.minecraft.gametest.framework.GameTestInfo;
+import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -25,6 +30,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -53,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,6 +85,8 @@ import static net.minecraft.commands.Commands.literal;
 
 @ApiStatus.Internal
 public class TestFrameworkImpl implements TestFrameworkInternal {
+    private static final Set<TestFrameworkImpl> FRAMEWORKS = Collections.synchronizedSet(new HashSet<>());
+
     private final FrameworkConfiguration configuration;
     private final @Nullable FrameworkClient client;
 
@@ -92,6 +101,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private String commandName;
 
     public TestFrameworkImpl(FrameworkConfiguration configuration) {
+        FRAMEWORKS.add(this);
+
         this.configuration = configuration;
         this.id = configuration.id();
         this.channel = configuration.networkingChannel();
@@ -306,10 +317,36 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         collectGroupConfig(container);
 
         modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
+        modBus.addListener((final RegisterGameTestsEvent event) -> LamdbaExceptionUtils.uncheck(() -> event.register(TestFrameworkImpl.class.getDeclaredMethod("registerGameTests"))));
 
         if (FMLLoader.getDist().isClient()) {
             setupClient(this, modBus, container);
         }
+    }
+
+    @GameTestGenerator
+    public static List<TestFunction> registerGameTests() {
+        final List<TestFunction> tests = new ArrayList<>();
+        for (final TestFrameworkImpl framework : FRAMEWORKS) {
+            for (final Test test : framework.tests().tests.values()) {
+                final GameTestData data = test.asGameTest();
+                if (data != null) {
+                    final String batchName = test.groups().size() > 0 ? test.groups().get(0) : "ungrouped";
+                    tests.add(new TestFunction(
+                            batchName, test.id(), data.structureName(),
+                            data.rotation(), data.maxTicks(), data.setupTicks(),
+                            data.required(), data.requiredSuccesses(), data.maxAttempts(),
+                            helper -> {
+                                data.function().accept(helper);
+                                final Test.Status status = framework.tests().getStatus(test.id());
+                                if (status.result().passed()) helper.succeed();
+                                else if (status.result().failed()) helper.fail(status.message());
+                            }
+                    ));
+                }
+            }
+        }
+        return tests;
     }
 
     private void collectGroupConfig(ModContainer container) {

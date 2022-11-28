@@ -2,6 +2,7 @@ package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.DynamicTest;
 import com.matyrobbrt.testframework.ExampleMod;
+import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
@@ -24,7 +25,8 @@ public class PlayerEventsTest {
     public static final String GROUP = ExampleMod.EVENTS + ".player";
 
     /**
-     * This is a method-based test.
+     * This is a method-based test. <br>
+     * This method will be called in {@link com.matyrobbrt.testframework.Test#init(TestFramework)} to set up the test.
      */
     @TestHolder(
             value = "change_gamemode",
@@ -40,7 +42,8 @@ public class PlayerEventsTest {
     }
 
     /**
-     * This is a method-based test, which is package-private as the framework invokes it with trusted lookup.
+     * This is a method-based test, which is package-private as the framework invokes it with trusted lookup. <br>
+     * This method will be called in {@link com.matyrobbrt.testframework.Test#init(TestFramework)} to set up the test.
      */
     @TestHolder(
             value = "pickup_xp",

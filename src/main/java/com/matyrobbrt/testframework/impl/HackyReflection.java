@@ -36,6 +36,32 @@ public final class HackyReflection {
         }
     }
 
+    public static <T> T getInstanceField(Object instance, String name) {
+        try {
+            final Field field = instance.getClass().getDeclaredField(name);
+            return (T)UNSAFE.getObject(instance, UNSAFE.objectFieldOffset(field));
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
+    public static void setInstanceField(Object instance, String name, Object value) {
+        try {
+            final Field field = instance.getClass().getDeclaredField(name);
+            UNSAFE.putObject(instance, UNSAFE.objectFieldOffset(field), value);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
+    public static Class<?> getClass(String name) {
+        try {
+            return LOOKUP.findClass(name);
+        } catch (ClassNotFoundException | IllegalAccessException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
     public static MethodHandle staticHandle(Method method) {
         try {
             return LOOKUP.findStatic(method.getDeclaringClass(), method.getName(), MethodType.methodType(method.getReturnType(), method.getParameterTypes()));
@@ -54,6 +80,14 @@ public final class HackyReflection {
 
     public static MethodHandle handle(Method method) {
         return Modifier.isStatic(method.getModifiers()) ? staticHandle(method) : virtualHandle(method);
+    }
+
+    public static MethodHandle constructor(Class<?> owner, MethodType type) {
+        try {
+            return LOOKUP.findConstructor(owner, type);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new RuntimeException("BARF!", e);
+        }
     }
 
     public static Method methodMatching(Class<?> clazz, Predicate<Method> methodPredicate) {
