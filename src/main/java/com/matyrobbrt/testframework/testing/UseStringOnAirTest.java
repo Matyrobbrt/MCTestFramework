@@ -6,6 +6,7 @@ import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.NotNull;
 
 @TestHolder(
         value = "use_string_on_air",
@@ -19,7 +20,7 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class UseStringOnAirTest extends AbstractTest {
     @Override
-    public void onEnabled(EventListenerGroup buses) {
+    public void onEnabled(@NotNull EventListenerGroup buses) {
         buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final PlayerInteractEvent.RightClickItem event) -> {
             if (event.getLevel().isClientSide() && event.getItemStack().is(Tags.Items.STRING)) {
                 pass();

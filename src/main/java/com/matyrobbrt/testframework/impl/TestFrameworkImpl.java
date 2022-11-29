@@ -1,10 +1,13 @@
 package com.matyrobbrt.testframework.impl;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
-import com.matyrobbrt.testframework.TestFramework;
+import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.gametest.GameTestData;
+import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.group.Groupable;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
@@ -19,7 +22,6 @@ import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.gametest.framework.GameTestGenerator;
-import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -28,6 +30,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterGameTestsEvent;
@@ -54,11 +57,14 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -77,6 +83,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -97,6 +104,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private final SimpleChannel channel;
 
     private @Nullable MinecraftServer server;
+    private final DynamicStructureTemplates structures;
 
     private String commandName;
 
@@ -106,6 +114,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         this.configuration = configuration;
         this.id = configuration.id();
         this.channel = configuration.networkingChannel();
+        this.structures = new DynamicStructureTemplates();
 
         this.logger = LoggerFactory.getLogger("TestFramework " + this.id);
         prepareLogger();
@@ -119,6 +128,12 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         MinecraftForge.EVENT_BUS.addListener((final ServerStartedEvent event) -> {
             server = event.getServer();
             tests.initialiseDefaultEnabledTests();
+
+            try {
+                structures.setup(event.getServer().getStructureManager());
+            } catch (Throwable exception) {
+                throw new RuntimeException(exception);
+            }
         });
         MinecraftForge.EVENT_BUS.addListener((final ServerStoppedEvent event) -> {
             server = event.getServer() == server ? null : server;
@@ -322,6 +337,25 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         if (FMLLoader.getDist().isClient()) {
             setupClient(this, modBus, container);
         }
+
+        final Type regStrTemplate = Type.getType(RegisterStructureTemplate.class);
+        container.getModInfo().getOwningFile().getFile().getScanResult()
+                .getAnnotations().stream()
+                .filter(it -> it.targetType() == ElementType.FIELD && it.annotationType().equals(regStrTemplate))
+                .map(LamdbaExceptionUtils.rethrowFunction(data -> Class.forName(data.clazz().getClassName()).getDeclaredField(data.memberName())))
+                .filter(it -> Modifier.isStatic(it.getModifiers()) && (StructureTemplate.class.isAssignableFrom(it.getType()) || Supplier.class.isAssignableFrom(it.getType())))
+                .forEach(field -> {
+                    final Object obj = HackyReflection.getStaticField(field);
+                    final RegisterStructureTemplate annotation = field.getAnnotation(RegisterStructureTemplate.class);
+                    if (obj instanceof StructureTemplate template) {
+                        structures.register(new ResourceLocation(annotation.value()), template);
+                    } else if (obj instanceof Supplier<?> supplier) {
+                        //noinspection unchecked
+                        structures.register(new ResourceLocation(annotation.value()), (Supplier<StructureTemplate>) supplier);
+                    } else if (obj instanceof StructureTemplateBuilder builder) {
+                        structures.register(new ResourceLocation(annotation.value()), Suppliers.memoize(builder::build));
+                    }
+                });
     }
 
     @GameTestGenerator
@@ -337,6 +371,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                             data.rotation(), data.maxTicks(), data.setupTicks(),
                             data.required(), data.requiredSuccesses(), data.maxAttempts(),
                             helper -> {
+                                framework.tests.statuses.put(test.id(), Test.Status.DEFAULT); // Reset the status, just in case
                                 data.function().accept(helper);
                                 final Test.Status status = framework.tests().getStatus(test.id());
                                 if (status.result().passed()) helper.succeed();

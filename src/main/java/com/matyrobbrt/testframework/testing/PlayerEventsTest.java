@@ -4,9 +4,15 @@ import com.matyrobbrt.testframework.DynamicTest;
 import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
+import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.event.entity.player.AdvancementEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerXpEvent;
@@ -41,6 +47,9 @@ public class PlayerEventsTest {
         }));
     }
 
+    @RegisterStructureTemplate("examplemod:empty_3x3")
+    static final StructureTemplate EMPTY_3x3 = StructureTemplateBuilder.empty(3, 3, 3);
+
     /**
      * This is a method-based test, which is package-private as the framework invokes it with trusted lookup. <br>
      * This method will be called in {@link com.matyrobbrt.testframework.Test#init(TestFramework)} to set up the test.
@@ -49,12 +58,19 @@ public class PlayerEventsTest {
             value = "pickup_xp",
             description = "The event passes when a player picks up XP with a value of at least 2."
     )
+    @GameTest(template = "examplemod:empty_3x3")
     static void onPickupXp(final DynamicTest test) {
         test.whenEnabled(buses -> buses.getFor(Bus.FORGE).addListener((final PlayerXpEvent.PickupXp event) -> {
             if (event.getOrb().value >= 2) {
                 test.pass();
             }
         }));
+
+        test.onGameTest(helper -> {
+            final Player mockPlayer = helper.makeMockPlayer();
+            new ExperienceOrb(helper.getLevel(), 0, 0, 0, 3).playerTouch(mockPlayer);
+            helper.succeedIf(() -> helper.assertEntityProperty(mockPlayer, player -> player.totalExperience == 3 && test.status().result().passed(), "experience"));
+        });
     }
 
     /**

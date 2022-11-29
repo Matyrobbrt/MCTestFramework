@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.IModBusEvent;
 
+import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 
@@ -50,7 +51,7 @@ public class MethodBasedEventTest extends AbstractTest.Dynamic {
     }
 
     @Override
-    public void onEnabled(EventListenerGroup buses) {
+    public void onEnabled(@Nonnull EventListenerGroup buses) {
         super.onEnabled(buses);
         buses.getFor(bus).addListener(priority, receiveCancelled, eventClass, event -> {
             try {

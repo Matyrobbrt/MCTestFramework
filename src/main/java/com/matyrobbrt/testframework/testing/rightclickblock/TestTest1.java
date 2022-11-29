@@ -5,6 +5,7 @@ import com.matyrobbrt.testframework.annotation.TestHolder;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.NotNull;
 
 @TestHolder(
         value = "hello_test_glowstone",
@@ -17,7 +18,7 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class TestTest1 extends AbstractTest {
     @Override
-    public void onEnabled(EventListenerGroup buses) {
+    public void onEnabled(@NotNull EventListenerGroup buses) {
         buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final PlayerInteractEvent.RightClickBlock event) -> {
             if (!event.getLevel().isClientSide && event.getItemStack().is(Items.GLOWSTONE)) {
                 if (event.getEntity().isShiftKeyDown()) {

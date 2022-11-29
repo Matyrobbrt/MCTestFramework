@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.NotNull;
 
 @TestHolder(
         value = "ungrouped_test",
@@ -17,7 +18,7 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class UngroupedTest extends AbstractTest {
     @Override
-    public void onEnabled(EventListenerGroup buses) {
+    public void onEnabled(@NotNull EventListenerGroup buses) {
         buses.getFor(Mod.EventBusSubscriber.Bus.FORGE).addListener((final LivingEvent.LivingJumpEvent event) -> {
             if (event.getEntity() instanceof Player player && !event.getEntity().getLevel().isClientSide()) {
                 requestConfirmation(player, Component.literal("Did you jump?"));

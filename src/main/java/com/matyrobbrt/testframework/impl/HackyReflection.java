@@ -8,13 +8,14 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 @SuppressWarnings("unchecked")
 public final class HackyReflection {
-    private static final Unsafe UNSAFE;
-    private static final MethodHandles.Lookup LOOKUP;
+    public static final Unsafe UNSAFE;
+    public static final MethodHandles.Lookup LOOKUP;
     static {
         try {
             final Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
@@ -26,14 +27,18 @@ public final class HackyReflection {
             throw new RuntimeException("BARF!", e);
         }
     }
-
+    
     public static <T> T getStaticField(Class<?> clazz, String name) {
         try {
             final Field field = clazz.getDeclaredField(name);
-            return (T)UNSAFE.getObject(UNSAFE.staticFieldBase(field), UNSAFE.staticFieldOffset(field));
+            return getStaticField(field);
         } catch (NoSuchFieldException e) {
             throw new RuntimeException("BARF!", e);
         }
+    }
+
+    public static <T> T getStaticField(Field field) {
+        return (T)UNSAFE.getObject(UNSAFE.staticFieldBase(field), UNSAFE.staticFieldOffset(field));
     }
 
     public static <T> T getInstanceField(Object instance, String name) {
@@ -58,6 +63,22 @@ public final class HackyReflection {
         try {
             return LOOKUP.findClass(name);
         } catch (ClassNotFoundException | IllegalAccessException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
+    public static Field getField(Class<?> clazz, String name) {
+        try {
+            return clazz.getDeclaredField(name);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
+    public static MethodHandle fieldHandle(Field field) {
+        try {
+            return LOOKUP.unreflectGetter(field);
+        } catch (IllegalAccessException e) {
             throw new RuntimeException("BARF!", e);
         }
     }

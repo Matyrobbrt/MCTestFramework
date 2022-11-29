@@ -2,6 +2,7 @@ package com.matyrobbrt.testframework;
 
 import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.group.Groupable;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
@@ -11,12 +12,15 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * The base interface for tests in the TestFramework.
  */
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
 public interface Test extends Groupable {
     /**
      * {@return the ID of this test}

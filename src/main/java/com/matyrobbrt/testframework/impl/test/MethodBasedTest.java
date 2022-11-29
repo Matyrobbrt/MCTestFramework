@@ -4,7 +4,9 @@ import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.HackyReflection;
+import net.minecraft.gametest.framework.GameTest;
 
+import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 
@@ -14,10 +16,12 @@ public class MethodBasedTest extends AbstractTest.Dynamic {
 
     public MethodBasedTest(Method method) {
         this.method = method;
+
         final TestHolder marker = method.getAnnotation(TestHolder.class);
         if (marker != null) {
             configureFrom(method.getDeclaringClass().getAnnotation(ForEachTest.class), marker);
         }
+        configureGameTest(method.getAnnotation(GameTest.class));
 
         this.handle = HackyReflection.handle(method);
     }
@@ -28,7 +32,7 @@ public class MethodBasedTest extends AbstractTest.Dynamic {
     }
 
     @Override
-    public void init(TestFramework framework) {
+    public void init(@Nonnull TestFramework framework) {
         super.init(framework);
         try {
             this.handle.invoke(this);

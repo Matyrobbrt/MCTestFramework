@@ -1,5 +1,6 @@
 package com.matyrobbrt.testframework;
 
+import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,15 +51,29 @@ public interface DynamicTest extends Test {
 
     /**
      * Registers a listener to run when this test is enabled.
+     *
      * @param whenEnabled the listener
      */
     void whenEnabled(final EnabledListener whenEnabled);
 
     /**
      * Registers a listener to run when this test is disabled.
+     *
      * @param whenDisabled the listener
      */
     void whenDisabled(final Runnable whenDisabled);
+
+    /**
+     * Registers a listener to run when the GameTest version of this test is run.
+     *
+     * @param consumer the listener
+     */
+    void onGameTest(final Consumer<GameTestHelper> consumer);
+
+    /**
+     * {@return if this test is currently running as a GameTest}
+     */
+    boolean isDuringGameTest();
 
     @FunctionalInterface
     interface EnabledListener {
