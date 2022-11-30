@@ -39,7 +39,7 @@ public interface TestCollector {
     }
 
     static TestCollector forMethodsWithAnnotation(Class<? extends Annotation> annotation) {
-        return container -> findWithAnnotation(container, annotation)
+        return container -> findMethodsWithAnnotation(container, annotation)
                 .filter(method -> method.getParameterTypes().length == 1 && method.getParameterTypes()[0].isAssignableFrom(MethodBasedTest.class))
                 .filter(method -> {
                     if (Modifier.isStatic(method.getModifiers())) {
@@ -52,7 +52,7 @@ public interface TestCollector {
     }
 
     static TestCollector eventTestMethodsWithAnnotation(Class<? extends Annotation> annotation) {
-        return container -> findWithAnnotation(container, annotation)
+        return container -> findMethodsWithAnnotation(container, annotation)
                 .filter(method -> method.getParameterTypes().length == 2 && Event.class.isAssignableFrom(method.getParameterTypes()[0]) && method.getParameterTypes()[1].isAssignableFrom(MethodBasedEventTest.class))
                 .filter(method -> {
                     if (Modifier.isStatic(method.getModifiers())) {
@@ -64,7 +64,7 @@ public interface TestCollector {
                 .<Test>map(MethodBasedEventTest::new).toList();
     }
 
-    private static Stream<Method> findWithAnnotation(ModContainer container, Class<? extends Annotation> annotation) {
+    static Stream<Method> findMethodsWithAnnotation(ModContainer container, Class<? extends Annotation> annotation) {
         final Type annType = Type.getType(annotation);
         return container.getModInfo().getOwningFile().getFile().getScanResult()
                 .getAnnotations().stream().filter(it -> annType.equals(it.annotationType()) && it.targetType() == ElementType.METHOD)

@@ -1,10 +1,14 @@
 package com.matyrobbrt.testframework.impl;
 
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.annotation.OnInit;
 import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.conf.TestCollector;
 import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
@@ -64,6 +68,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -326,7 +331,24 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private IEventBus modBus;
     @Override
     public void init(final IEventBus modBus, final ModContainer container) {
+        final SetMultimap<OnInit.Stage, Consumer<TestFrameworkImpl>> byStage = Multimaps.newSetMultimap(new HashMap<>(), HashSet::new);
+        TestCollector.findMethodsWithAnnotation(container, OnInit.class)
+                .filter(method -> Modifier.isStatic(method.getModifiers()) && method.getParameterTypes().length == 1 && method.getParameterTypes()[0].isAssignableFrom(TestFrameworkImpl.class))
+                .forEach(LamdbaExceptionUtils.rethrowConsumer(method -> {
+                    final MethodHandle handle = HackyReflection.staticHandle(method);
+                    byStage.put(method.getAnnotation(OnInit.class).value(), framework -> {
+                        try {
+                            handle.invokeWithArguments(framework);
+                        } catch (Throwable throwable) {
+                            throw new RuntimeException(throwable);
+                        }
+                    });
+                }));
+
         this.modBus = modBus;
+
+        byStage.get(OnInit.Stage.BEFORE_SETUP).forEach(cons -> cons.accept(this));
+
         final List<Test> collected = collectTests(container);
         logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
         collected.forEach(tests()::register);
@@ -357,6 +379,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                         structures.register(new ResourceLocation(annotation.value()), Suppliers.memoize(builder::build));
                     }
                 });
+
+        byStage.get(OnInit.Stage.AFTER_SETUP).forEach(cons -> cons.accept(this));
     }
 
     @GameTestGenerator

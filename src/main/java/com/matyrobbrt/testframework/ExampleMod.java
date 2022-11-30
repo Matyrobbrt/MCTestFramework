@@ -44,6 +44,9 @@ public class ExampleMod {
             .set(7, 7, 7, Blocks.ACACIA_LOG.defaultBlockState())
             .build();
 
+    @RegisterStructureTemplate("examplemod:empty_1x1")
+    static final StructureTemplate EMPTY_1x1 = StructureTemplateBuilder.empty(1, 1, 1);
+
     public ExampleMod() {
         final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()

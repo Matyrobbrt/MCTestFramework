@@ -24,7 +24,4 @@ public class EnteringSectionEventTest extends AbstractTest {
             }
         });
     }
-
-    @Override
-    public void onDisabled() {}
 }

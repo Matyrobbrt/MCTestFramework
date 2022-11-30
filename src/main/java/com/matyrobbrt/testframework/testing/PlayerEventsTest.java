@@ -4,15 +4,12 @@ import com.matyrobbrt.testframework.DynamicTest;
 import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
-import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.event.entity.player.AdvancementEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerXpEvent;
@@ -46,9 +43,6 @@ public class PlayerEventsTest {
             }
         }));
     }
-
-    @RegisterStructureTemplate("examplemod:empty_1x1")
-    static final StructureTemplate EMPTY_1x1 = StructureTemplateBuilder.empty(1, 1, 1);
 
     /**
      * This is a method-based test, which is package-private as the framework invokes it with trusted lookup. <br>
