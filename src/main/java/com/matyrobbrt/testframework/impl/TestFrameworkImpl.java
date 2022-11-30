@@ -21,6 +21,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -372,7 +373,13 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                             data.required(), data.requiredSuccesses(), data.maxAttempts(),
                             helper -> {
                                 framework.tests.statuses.put(test.id(), Test.Status.DEFAULT); // Reset the status, just in case
-                                data.function().accept(helper);
+                                try {
+                                    data.function().accept(helper);
+                                } catch (GameTestAssertException assertion) {
+                                    framework.tests().setStatus(test.id(), new Test.Status(Test.Result.FAILED, assertion.getMessage()));
+                                    throw assertion;
+                                }
+
                                 final Test.Status status = framework.tests().getStatus(test.id());
                                 if (status.result().passed()) helper.succeed();
                                 else if (status.result().failed()) helper.fail(status.message());
