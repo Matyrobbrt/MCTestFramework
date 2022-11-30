@@ -47,8 +47,8 @@ public class PlayerEventsTest {
         }));
     }
 
-    @RegisterStructureTemplate("examplemod:empty_3x3")
-    static final StructureTemplate EMPTY_3x3 = StructureTemplateBuilder.empty(3, 3, 3);
+    @RegisterStructureTemplate("examplemod:empty_1x1")
+    static final StructureTemplate EMPTY_1x1 = StructureTemplateBuilder.empty(1, 1, 1);
 
     /**
      * This is a method-based test, which is package-private as the framework invokes it with trusted lookup. <br>
@@ -58,7 +58,7 @@ public class PlayerEventsTest {
             value = "pickup_xp",
             description = "The event passes when a player picks up XP with a value of at least 2."
     )
-    @GameTest(template = "examplemod:empty_3x3")
+    @GameTest(template = "examplemod:empty_1x1")
     static void onPickupXp(final DynamicTest test) {
         test.whenEnabled(buses -> buses.getFor(Bus.FORGE).addListener((final PlayerXpEvent.PickupXp event) -> {
             if (event.getOrb().value >= 2) {
