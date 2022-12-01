@@ -1,17 +1,14 @@
 package com.matyrobbrt.testframework.impl;
 
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.annotation.OnInit;
-import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
+import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
-import com.matyrobbrt.testframework.conf.TestCollector;
 import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.gametest.GameTestData;
-import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.group.Groupable;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
@@ -22,6 +19,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.datafixers.util.Pair;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
@@ -36,7 +34,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterGameTestsEvent;
@@ -63,16 +60,10 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.lang.annotation.Annotation;
-import java.lang.annotation.ElementType;
-import java.lang.invoke.MethodHandle;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -91,7 +82,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -335,19 +325,9 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private IEventBus modBus;
     @Override
     public void init(final IEventBus modBus, final ModContainer container) {
-        final SetMultimap<OnInit.Stage, Consumer<TestFrameworkImpl>> byStage = Multimaps.newSetMultimap(new HashMap<>(), HashSet::new);
-        TestCollector.findMethodsWithAnnotation(container, d -> true, OnInit.class)
-                .filter(method -> Modifier.isStatic(method.getModifiers()) && method.getParameterTypes().length == 1 && method.getParameterTypes()[0].isAssignableFrom(TestFrameworkImpl.class))
-                .forEach(LamdbaExceptionUtils.rethrowConsumer(method -> {
-                    final MethodHandle handle = HackyReflection.staticHandle(method);
-                    byStage.put(method.getAnnotation(OnInit.class).value(), framework -> {
-                        try {
-                            handle.invokeWithArguments(framework);
-                        } catch (Throwable throwable) {
-                            throw new RuntimeException(throwable);
-                        }
-                    });
-                }));
+        final SetMultimap<OnInit.Stage, Consumer<? super TestFrameworkInternal>> byStage = configuration.collector(CollectorType.ON_INIT).toMultimap(
+                container, Multimaps.newSetMultimap(new HashMap<>(), HashSet::new), Pair::getFirst, Pair::getSecond
+        );
 
         this.modBus = modBus;
 
@@ -356,7 +336,15 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         final List<Test> collected = collectTests(container);
         logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
         collected.forEach(tests()::register);
-        collectGroupConfig(container);
+
+        configuration.collector(CollectorType.GROUP_DATA).collect(container, data -> {
+            final Group group = tests().getOrCreateGroup(data.id());
+            group.setTitle(data.title());
+            group.setEnabledByDefault(data.isEnabledByDefault());
+            for (final String parent : data.parents()) {
+                tests().getOrCreateGroup(parent).add(group);
+            }
+        });
 
         modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
         modBus.addListener((final RegisterGameTestsEvent event) -> LamdbaExceptionUtils.uncheck(() -> event.register(TestFrameworkImpl.class.getDeclaredMethod("registerGameTests"))));
@@ -365,24 +353,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             setupClient(this, modBus, container);
         }
 
-        final Type regStrTemplate = Type.getType(RegisterStructureTemplate.class);
-        container.getModInfo().getOwningFile().getFile().getScanResult()
-                .getAnnotations().stream()
-                .filter(it -> it.targetType() == ElementType.FIELD && it.annotationType().equals(regStrTemplate))
-                .map(LamdbaExceptionUtils.rethrowFunction(data -> Class.forName(data.clazz().getClassName()).getDeclaredField(data.memberName())))
-                .filter(it -> Modifier.isStatic(it.getModifiers()) && (StructureTemplate.class.isAssignableFrom(it.getType()) || Supplier.class.isAssignableFrom(it.getType())))
-                .forEach(field -> {
-                    final Object obj = HackyReflection.getStaticField(field);
-                    final RegisterStructureTemplate annotation = field.getAnnotation(RegisterStructureTemplate.class);
-                    if (obj instanceof StructureTemplate template) {
-                        structures.register(new ResourceLocation(annotation.value()), template);
-                    } else if (obj instanceof Supplier<?> supplier) {
-                        //noinspection unchecked
-                        structures.register(new ResourceLocation(annotation.value()), (Supplier<StructureTemplate>) supplier);
-                    } else if (obj instanceof StructureTemplateBuilder builder) {
-                        structures.register(new ResourceLocation(annotation.value()), Suppliers.memoize(builder::build));
-                    }
-                });
+        configuration.collector(CollectorType.STRUCTURE_TEMPLATES).collect(container, pair -> structures.register(pair.getFirst(), pair.getSecond()));
 
         byStage.get(OnInit.Stage.AFTER_SETUP).forEach(cons -> cons.accept(this));
     }
@@ -417,24 +388,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             }
         }
         return tests;
-    }
-
-    private void collectGroupConfig(ModContainer container) {
-        if (configuration.groupConfigurationCollector() == null) return;
-        container.getModInfo().getOwningFile().getFile().getScanResult()
-                .getAnnotations().stream().filter(it -> configuration.groupConfigurationCollector().asmType().equals(it.annotationType()))
-                .forEach(LamdbaExceptionUtils.rethrowConsumer(annotationData -> {
-                    final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
-                    final Field field = clazz.getDeclaredField(annotationData.memberName());
-                    final String groupId = (String)field.get(null);
-                    final Annotation annotation = field.getAnnotation(configuration.groupConfigurationCollector().annotation());
-                    final Group group = tests().getOrCreateGroup(groupId);
-                    group.setTitle(configuration.groupConfigurationCollector().getName(annotation));
-                    group.setEnabledByDefault(configuration.groupConfigurationCollector().isEnabledByDefault(annotation));
-                    for (final String parent : configuration.groupConfigurationCollector().getParents(annotation)) {
-                        tests().getOrCreateGroup(parent).add(group);
-                    }
-                }));
     }
 
     private static void setupClient(TestFrameworkImpl impl, IEventBus modBus, ModContainer container) {
@@ -475,7 +428,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
     @Override
     public List<Test> collectTests(final ModContainer container) {
-        return configuration.testCollector().collect(container);
+        return configuration.collector(CollectorType.TESTS).toCollection(container, ArrayList::new);
     }
 
     @Override

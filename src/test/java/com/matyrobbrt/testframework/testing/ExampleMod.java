@@ -3,15 +3,15 @@ package com.matyrobbrt.testframework.testing;
 import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.collector.CollectorType;
+import com.matyrobbrt.testframework.collector.Collectors;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
-import com.matyrobbrt.testframework.conf.TestCollector;
 import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -54,10 +54,15 @@ public class ExampleMod {
                         .openManagerKey(GLFW.GLFW_KEY_N)
                         .build())
                 .allowClientModifications().syncToClients()
-                .testCollector(TestCollector.forClassesWithAnnotation(TestHolder.class)
-                        .and(TestCollector.forMethodsWithAnnotation(TestHolder.class))
-                        .and(TestCollector.eventTestMethodsWithAnnotation(TestHolder.class)))
-                .groupConfigurationCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault, TestGroup::parents)
+
+                .withCollector(CollectorType.TESTS, Collectors.Tests.forMethodsWithAnnotation(TestHolder.class))
+                .withCollector(CollectorType.TESTS, Collectors.Tests.forClassesWithAnnotation(TestHolder.class))
+                .withCollector(CollectorType.TESTS, Collectors.Tests.eventTestMethodsWithAnnotation(TestHolder.class))
+
+                .withCollector(CollectorType.ON_INIT, Collectors.defaultOnInitCollector())
+                .withCollector(CollectorType.STRUCTURE_TEMPLATES, Collectors.defaultTemplateCollector())
+                .withCollector(CollectorType.GROUP_DATA, Collectors.defaultGroupCollector())
+
                 .build().create();
         framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());
 
