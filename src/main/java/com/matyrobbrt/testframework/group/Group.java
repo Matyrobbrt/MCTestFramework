@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.group;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -43,7 +44,7 @@ public final class Group implements Groupable {
     }
 
     @Override
-    public List<Test> resolveAll() {
+    public @NotNull List<Test> resolveAll() {
         return entries.stream().flatMap(gr -> gr.resolveAll().stream()).toList();
     }
 

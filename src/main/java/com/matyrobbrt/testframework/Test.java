@@ -85,6 +85,8 @@ public interface Test extends Groupable {
     /**
      * A group of collectors by {@link net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus bus}.
      */
+    @ParametersAreNonnullByDefault
+    @MethodsReturnNonnullByDefault
     interface EventListenerGroup {
         /**
          * Gets the collector for a bus.
@@ -97,6 +99,8 @@ public interface Test extends Groupable {
         /**
          * A collector of event listeners which automatically unregisters listeners when a test is disabled.
          */
+        @ParametersAreNonnullByDefault
+        @MethodsReturnNonnullByDefault
         interface EventListenerCollector {
             /**
              * Register an instance object or a {@linkplain Class}, and add listeners for all {@link SubscribeEvent} annotated methods

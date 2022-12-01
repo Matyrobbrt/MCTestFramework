@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.gametest;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.matyrobbrt.testframework.impl.HackyReflection;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
@@ -11,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
@@ -22,6 +24,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public class StructureTemplateBuilder implements TemplateBuilderHelper<StructureTemplateBuilder> {
     private static final FieldHandle<StructureTemplate, Vec3i> SIZE = FieldHandle.getFor(StructureTemplate.class, "size");
     private static final FieldHandle<StructureTemplate, List<StructureTemplate.Palette>> PALETTES = FieldHandle.getFor(StructureTemplate.class, "palettes");

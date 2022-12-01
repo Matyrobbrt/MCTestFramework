@@ -1,17 +1,21 @@
 package com.matyrobbrt.testframework.impl;
 
 import com.matyrobbrt.testframework.Test;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 class EventListenerGroupImpl implements Test.EventListenerGroup {
     private final Map<Mod.EventBusSubscriber.Bus, IEventBus> buses = new HashMap<>();
     private final Map<Mod.EventBusSubscriber.Bus, EventListenerCollectorImpl> collectors = new HashMap<>();

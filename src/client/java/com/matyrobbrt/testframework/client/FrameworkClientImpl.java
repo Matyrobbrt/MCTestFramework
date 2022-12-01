@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.client;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
 import com.matyrobbrt.testframework.impl.FrameworkClient;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ToggleKeyMapping;
@@ -12,9 +13,12 @@ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public class FrameworkClientImpl implements FrameworkClient {
     private final TestFrameworkInternal impl;
     private final ClientConfiguration configuration;

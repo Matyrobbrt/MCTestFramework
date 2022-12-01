@@ -6,6 +6,7 @@ import com.matyrobbrt.testframework.impl.test.MethodBasedEventTest;
 import com.matyrobbrt.testframework.impl.test.MethodBasedTest;
 import com.mojang.logging.LogUtils;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.ModContainer;
@@ -14,6 +15,7 @@ import net.minecraftforge.fml.loading.moddiscovery.ModAnnotation;
 import net.minecraftforge.forgespi.language.ModFileScanData;
 import org.objectweb.asm.Type;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Method;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @FunctionalInterface
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public interface TestCollector {
     List<Test> collect(ModContainer container);
 

@@ -1,7 +1,9 @@
 package com.matyrobbrt.testframework.impl;
 
+import net.minecraft.MethodsReturnNonnullByDefault;
 import sun.misc.Unsafe;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -13,6 +15,8 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 @SuppressWarnings("unchecked")
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public final class HackyReflection {
     public static final Unsafe UNSAFE;
     public static final MethodHandles.Lookup LOOKUP;
@@ -55,14 +59,6 @@ public final class HackyReflection {
             final Field field = instance.getClass().getDeclaredField(name);
             UNSAFE.putObject(instance, UNSAFE.objectFieldOffset(field), value);
         } catch (NoSuchFieldException e) {
-            throw new RuntimeException("BARF!", e);
-        }
-    }
-
-    public static Class<?> getClass(String name) {
-        try {
-            return LOOKUP.findClass(name);
-        } catch (ClassNotFoundException | IllegalAccessException e) {
             throw new RuntimeException("BARF!", e);
         }
     }

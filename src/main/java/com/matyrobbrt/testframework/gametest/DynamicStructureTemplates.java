@@ -2,10 +2,12 @@ package com.matyrobbrt.testframework.gametest;
 
 import com.matyrobbrt.testframework.impl.HackyReflection;
 import com.mojang.logging.LogUtils;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
@@ -17,6 +19,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public class DynamicStructureTemplates {
     private final Map<ResourceLocation, Supplier<StructureTemplate>> templates = new ConcurrentHashMap<>();
 

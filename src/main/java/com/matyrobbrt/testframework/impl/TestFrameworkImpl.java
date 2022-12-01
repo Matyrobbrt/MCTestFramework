@@ -24,6 +24,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestGenerator;
@@ -66,6 +67,7 @@ import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.invoke.MethodHandle;
@@ -97,6 +99,8 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 @ApiStatus.Internal
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public class TestFrameworkImpl implements TestFrameworkInternal {
     private static final Set<TestFrameworkImpl> FRAMEWORKS = Collections.synchronizedSet(new HashSet<>());
 
@@ -591,6 +595,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         }
     }
 
+    @ParametersAreNonnullByDefault
+    @MethodsReturnNonnullByDefault
     public final class TestsImpl implements TestsInternal {
         private final Map<String, Test> tests = Collections.synchronizedMap(new LinkedHashMap<>());
         private final Map<String, Group> groups = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -675,9 +681,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             return group;
         }
 
+        private final Collection<Test> allView = Collections.unmodifiableCollection(tests.values());
         @Override
         public Collection<Test> all() {
-            return Collections.unmodifiableCollection(tests.values());
+            return allView;
         }
 
         @Override

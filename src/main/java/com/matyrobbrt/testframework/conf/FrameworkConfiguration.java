@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.conf;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -15,9 +16,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public record FrameworkConfiguration(
         ResourceLocation id, boolean clientSynced, boolean modifiableByClients, int commandRequiredPermission,
         SimpleChannel networkingChannel, List<String> enabledTests, @Nullable Supplier<ClientConfiguration> clientConfiguration,
@@ -101,12 +105,16 @@ public record FrameworkConfiguration(
                             .simpleChannel() : networkingChannel;
             return new FrameworkConfiguration(
                     id, clientSynced, modifiableByClients, commandRequiredPermission,
-                    channel, enabledTests, clientConfiguration, testCollector, groupConfigurationCollector
+                    channel, enabledTests, clientConfiguration,
+                    Objects.requireNonNull(testCollector, "Cannot construct a FrameworkConfiguration without a test collector!"),
+                    groupConfigurationCollector
             );
         }
     }
 
     @SuppressWarnings("unchecked")
+    @ParametersAreNonnullByDefault
+    @MethodsReturnNonnullByDefault
     public record GroupConfigurationCollector<T extends Annotation>(Class<T> annotation, Type asmType, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault, Function<T, String[]> parents) {
         public Component getName(Object o) {
             return nameGetter.apply((T) o);

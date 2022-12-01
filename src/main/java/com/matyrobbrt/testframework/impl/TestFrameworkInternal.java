@@ -5,12 +5,14 @@ import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.group.Group;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
 import org.jetbrains.annotations.ApiStatus;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -21,6 +23,8 @@ import java.util.stream.Stream;
  * @see TestFrameworkImpl
  */
 @ApiStatus.Internal
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public interface TestFrameworkInternal extends TestFramework {
     FrameworkConfiguration configuration();
     void init(final IEventBus modBus, final ModContainer container);

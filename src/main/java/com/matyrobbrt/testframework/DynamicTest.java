@@ -1,15 +1,19 @@
 package com.matyrobbrt.testframework;
 
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.function.Consumer;
 
 /**
  * A special type of {@linkplain Test test} which may only be linked to one {@linkplain TestFramework framework} at a time. <br>
  * This type of test can have enabled/disabled listeners added dynamically, and is as such, used primarily by method-based tests.
  */
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public interface DynamicTest extends Test {
     /**
      * {@return the framework this test is linked to}
