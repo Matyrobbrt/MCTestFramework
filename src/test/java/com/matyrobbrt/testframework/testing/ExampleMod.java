@@ -1,4 +1,4 @@
-package com.matyrobbrt.testframework;
+package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;

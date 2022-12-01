@@ -22,6 +22,9 @@ sourceSets {
             srcDir 'src/generated/resources'
         }
     }
+    test {
+
+    }
 }
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
@@ -31,19 +34,21 @@ minecraft {
     // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
 
     runs {
+        configureEach {
+            mods {
+                examplemod {
+                    source sourceSets.main
+                    source sourceSets.test
+                    source sourceSets.client
+                }
+            }
+        }
         client {
             workingDirectory project.file('run')
 
             property 'forge.logging.console.level', 'debug'
 
             property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
         }
 
         server {
@@ -54,13 +59,6 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
         }
 
         gameTestServer {
@@ -71,13 +69,6 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
         }
 
         data {
@@ -88,13 +79,6 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
 
             args '--mod', 'examplemod', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
-
-            mods {
-                examplemod {
-                    source sourceSets.main
-                    source sourceSets.client
-                }
-            }
         }
     }
 }
@@ -104,6 +88,8 @@ repositories {
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
+
+    testCompileOnly sourceSets.main.output
 }
 
 jar {

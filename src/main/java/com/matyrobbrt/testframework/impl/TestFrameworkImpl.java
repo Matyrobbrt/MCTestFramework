@@ -514,12 +514,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     public void setEnabled(Test test, boolean enabled, @Nullable Entity changer) {
         if (tests.isEnabled(test.id()) == enabled) return; // If the status is the same, don't waste power
 
-        if (!(FMLLoader.getDist().isClient() && server == null)) {
-            if (enabled) {
-                tests.enable(test.id());
-            } else {
-                tests.disable(test.id());
-            }
+        if (enabled) {
+            tests.enable(test.id());
+        } else {
+            tests.disable(test.id());
         }
 
         logger.info("Test '{}' has been {}{}.", test.id(), enabled ? "enabled" : "disabled", changer instanceof Player player ? " by " + player.getGameProfile().getName() : "");
@@ -626,6 +624,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         @Override
         public void enable(String id) {
+            if (enabled.contains(id)) return;
             final EventListenerGroupImpl collector = collectors.computeIfAbsent(id, it -> new EventListenerGroupImpl()
                     .add(Mod.EventBusSubscriber.Bus.MOD, modBus)
                     .add(Mod.EventBusSubscriber.Bus.FORGE, MinecraftForge.EVENT_BUS));
@@ -635,6 +634,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         @Override
         public void disable(String id) {
+            if (!enabled.contains(id)) return;
             byId(id).ifPresent(Test::onDisabled);
             Optional.ofNullable(collectors.get(id)).ifPresent(EventListenerGroupImpl::unregister);
             enabled.remove(id);

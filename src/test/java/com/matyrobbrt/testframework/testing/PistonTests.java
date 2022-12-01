@@ -1,7 +1,6 @@
 package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.DynamicTest;
-import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.TestFramework;
 import com.matyrobbrt.testframework.annotation.OnInit;
 import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;

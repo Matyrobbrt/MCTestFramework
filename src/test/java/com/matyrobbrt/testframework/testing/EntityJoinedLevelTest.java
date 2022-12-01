@@ -1,6 +1,5 @@
 package com.matyrobbrt.testframework.testing;
 
-import com.matyrobbrt.testframework.ExampleMod;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import net.minecraft.world.entity.animal.Bee;

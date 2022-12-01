@@ -1,6 +1,6 @@
 package com.matyrobbrt.testframework.testing.client;
 
-import com.matyrobbrt.testframework.ExampleMod;
+import com.matyrobbrt.testframework.testing.ExampleMod;
 import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import com.mojang.blaze3d.vertex.PoseStack;
