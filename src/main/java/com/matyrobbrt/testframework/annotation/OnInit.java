@@ -11,7 +11,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
 
 /**
- * Annotate a method accepting exactly one parameter of {@linkplain TestFrameworkInternal} (or parent interfaces) to
+ * Annotate a static method accepting exactly one parameter of {@linkplain TestFrameworkInternal} (or parent interfaces) to
  * register that method as an on-init listener, which will be called in {@link TestFrameworkInternal#init(IEventBus, ModContainer)}.
  * The time when it will be called depends on the {@linkplain #value() stage} given as an annotation parameter.
  */

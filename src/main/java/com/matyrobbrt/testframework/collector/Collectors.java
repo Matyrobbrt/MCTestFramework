@@ -88,6 +88,15 @@ public final class Collectors {
         }
     }
 
+    /**
+     * This method creates a collector for {@linkplain CollectorType#INIT_LISTENERS init listeners} which is based on static methods
+     * accepting exactly one parameter of {@linkplain TestFrameworkInternal} (or parent interfaces).
+     *
+     * @param annotation  the type of the annotation to look for
+     * @param stageGetter the getter of the stage to fire the listener on
+     * @param <A>         the annotation
+     * @return the collector
+     */
     public static <A extends Annotation> Collector<Pair<OnInit.Stage, Consumer<? super TestFrameworkInternal>>> onInitMethodsWithAnnotation(Class<A> annotation, Function<A, OnInit.Stage> stageGetter) {
         return (container, acceptor) -> findMethodsWithAnnotation(container, d -> true, annotation)
                 .filter(method -> Modifier.isStatic(method.getModifiers()) && method.getParameterTypes().length == 1 && method.getParameterTypes()[0].isAssignableFrom(TestFrameworkImpl.class))

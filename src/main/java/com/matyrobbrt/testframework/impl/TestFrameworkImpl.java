@@ -325,7 +325,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     private IEventBus modBus;
     @Override
     public void init(final IEventBus modBus, final ModContainer container) {
-        final SetMultimap<OnInit.Stage, Consumer<? super TestFrameworkInternal>> byStage = configuration.collector(CollectorType.ON_INIT).toMultimap(
+        final SetMultimap<OnInit.Stage, Consumer<? super TestFrameworkInternal>> byStage = configuration.collector(CollectorType.INIT_LISTENERS).toMultimap(
                 container, Multimaps.newSetMultimap(new HashMap<>(), HashSet::new), Pair::getFirst, Pair::getSecond
         );
 
@@ -371,7 +371,9 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                             data.rotation(), data.maxTicks(), data.setupTicks(),
                             data.required(), data.requiredSuccesses(), data.maxAttempts(),
                             helper -> {
-                                framework.tests.statuses.put(test.id(), Test.Status.DEFAULT); // Reset the status, just in case
+                                framework.setEnabled(test, true, null);
+                                framework.changeStatus(test, Test.Status.DEFAULT, null); // Reset the status, just in case
+
                                 try {
                                     data.function().accept(helper);
                                 } catch (GameTestAssertException assertion) {

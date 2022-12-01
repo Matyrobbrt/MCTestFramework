@@ -59,7 +59,7 @@ public class ExampleMod {
                 .withCollector(CollectorType.TESTS, Collectors.Tests.forClassesWithAnnotation(TestHolder.class))
                 .withCollector(CollectorType.TESTS, Collectors.Tests.eventTestMethodsWithAnnotation(TestHolder.class))
 
-                .withCollector(CollectorType.ON_INIT, Collectors.defaultOnInitCollector())
+                .withCollector(CollectorType.INIT_LISTENERS, Collectors.defaultOnInitCollector())
                 .withCollector(CollectorType.STRUCTURE_TEMPLATES, Collectors.defaultTemplateCollector())
                 .withCollector(CollectorType.GROUP_DATA, Collectors.defaultGroupCollector())
 

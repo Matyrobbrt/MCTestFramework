@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 public record CollectorType<A>(Type type) {
     public static final CollectorType<Test> TESTS = get(new TypeToken<>() {});
     public static final CollectorType<Pair<ResourceLocation, Supplier<StructureTemplate>>> STRUCTURE_TEMPLATES = get(new TypeToken<>() {});
-    public static final CollectorType<Pair<OnInit.Stage, Consumer<? super TestFrameworkInternal>>> ON_INIT = get(new TypeToken<>() {});
+    public static final CollectorType<Pair<OnInit.Stage, Consumer<? super TestFrameworkInternal>>> INIT_LISTENERS = get(new TypeToken<>() {});
     public static final CollectorType<GroupData> GROUP_DATA = get(new TypeToken<>() {});
 
     public record GroupData(String id, @Nullable Component title, boolean isEnabledByDefault, String[] parents) {}
