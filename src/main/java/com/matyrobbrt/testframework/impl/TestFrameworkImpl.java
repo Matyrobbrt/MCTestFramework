@@ -216,10 +216,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                 };
             }
 
-            private void parseGroupable(CommandSourceStack stack, String id, Consumer<Groupable> consumer) {
-                parseGroupable(stack, id, consumer::accept, consumer::accept);
-            }
-
             private void parseGroupable(CommandSourceStack stack, String id, Consumer<Group> isGroup, Consumer<Test> isTest) {
                 if (id.startsWith("g:")) {
                     final String grId = id.substring(2);

@@ -4,6 +4,7 @@ import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -16,7 +17,7 @@ public final class Group implements Groupable {
     public Group(String id, List<Groupable> entries) {
         this.id = id;
         this.entries = entries;
-        this.title = Component.literal(TestFrameworkImpl.capitaliseWords(id(), "\\."));
+        this.title = getDefaultTitle();
     }
 
     public String id() {
@@ -39,8 +40,12 @@ public final class Group implements Groupable {
         return this.title;
     }
 
-    public void setTitle(Component title) {
-        this.title = title;
+    public void setTitle(@Nullable Component title) {
+        this.title = title == null ? getDefaultTitle() : title;
+    }
+
+    public Component getDefaultTitle() {
+        return Component.literal(TestFrameworkImpl.capitaliseWords(id(), "\\."));
     }
 
     @Override
