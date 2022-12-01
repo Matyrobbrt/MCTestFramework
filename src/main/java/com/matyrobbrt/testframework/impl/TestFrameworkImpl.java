@@ -125,7 +125,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         this.logger = LoggerFactory.getLogger("TestFramework " + this.id);
         prepareLogger();
 
-        if (configuration.clientConfiguration() != null) {
+        if (FMLLoader.getDist().isClient() && configuration.clientConfiguration() != null) {
             this.client = FrameworkClient.factory().map(it -> it.create(this, configuration.clientConfiguration().get())).orElse(null);
         } else {
             this.client = null;
@@ -332,7 +332,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     @Override
     public void init(final IEventBus modBus, final ModContainer container) {
         final SetMultimap<OnInit.Stage, Consumer<TestFrameworkImpl>> byStage = Multimaps.newSetMultimap(new HashMap<>(), HashSet::new);
-        TestCollector.findMethodsWithAnnotation(container, OnInit.class)
+        TestCollector.findMethodsWithAnnotation(container, d -> true, OnInit.class)
                 .filter(method -> Modifier.isStatic(method.getModifiers()) && method.getParameterTypes().length == 1 && method.getParameterTypes()[0].isAssignableFrom(TestFrameworkImpl.class))
                 .forEach(LamdbaExceptionUtils.rethrowConsumer(method -> {
                     final MethodHandle handle = HackyReflection.staticHandle(method);
@@ -629,13 +629,13 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             final EventListenerGroupImpl collector = collectors.computeIfAbsent(id, it -> new EventListenerGroupImpl()
                     .add(Mod.EventBusSubscriber.Bus.MOD, modBus)
                     .add(Mod.EventBusSubscriber.Bus.FORGE, MinecraftForge.EVENT_BUS));
-            byId(id).orElseThrow().onEnabled(collector);
+            byId(id).ifPresent(test -> test.onEnabled(collector));
             enabled.add(id);
         }
 
         @Override
         public void disable(String id) {
-            byId(id).orElseThrow().onDisabled();
+            byId(id).ifPresent(Test::onDisabled);
             Optional.ofNullable(collectors.get(id)).ifPresent(EventListenerGroupImpl::unregister);
             enabled.remove(id);
         }

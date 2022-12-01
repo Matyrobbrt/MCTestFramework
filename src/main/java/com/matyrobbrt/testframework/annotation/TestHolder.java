@@ -2,6 +2,7 @@ package com.matyrobbrt.testframework.annotation;
 
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.impl.test.AbstractTest;
+import net.minecraftforge.api.distmarker.Dist;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -43,4 +44,9 @@ public @interface TestHolder {
      * {@return if this test is enabled by default}
      */
     boolean enabledByDefault() default false;
+
+    /**
+     * {@return the sides this test should be registered on}
+     */
+    Dist[] side() default {Dist.CLIENT, Dist.DEDICATED_SERVER};
 }
