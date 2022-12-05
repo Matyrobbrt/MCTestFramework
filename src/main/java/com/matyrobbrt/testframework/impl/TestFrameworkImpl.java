@@ -8,25 +8,17 @@ import com.matyrobbrt.testframework.annotation.OnInit;
 import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
-import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.group.Group;
-import com.matyrobbrt.testframework.group.Groupable;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
 import com.matyrobbrt.testframework.impl.packet.ChangeStatusPacket;
 import com.matyrobbrt.testframework.impl.packet.TFPacket;
-import com.mojang.brigadier.Command;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import com.matyrobbrt.testframework.impl.packet.TFPackets;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.datafixers.util.Pair;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.gametest.framework.GameTestAssertException;
-import net.minecraft.gametest.framework.GameTestGenerator;
-import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -47,7 +39,6 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-import net.minecraftforge.server.command.EnumArgument;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -73,7 +64,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -85,14 +75,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static net.minecraft.commands.Commands.argument;
-import static net.minecraft.commands.Commands.literal;
-
 @ApiStatus.Internal
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class TestFrameworkImpl implements TestFrameworkInternal {
-    private static final Set<TestFrameworkImpl> FRAMEWORKS = Collections.synchronizedSet(new HashSet<>());
+    static final Set<TestFrameworkImpl> FRAMEWORKS = Collections.synchronizedSet(new HashSet<>());
 
     private final FrameworkConfiguration configuration;
     private final @Nullable FrameworkClient client;
@@ -105,6 +92,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
     private @Nullable MinecraftServer server;
     private final DynamicStructureTemplates structures;
+    private final SummaryDumper summaryDumper;
 
     private String commandName;
 
@@ -115,9 +103,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         this.id = configuration.id();
         this.channel = configuration.networkingChannel();
         this.structures = new DynamicStructureTemplates();
+        this.summaryDumper = new SummaryDumper(this);
 
         this.logger = LoggerFactory.getLogger("TestFramework " + this.id);
-        prepareLogger();
+        new LoggerSetup(this).prepareLogger();
 
         if (FMLLoader.getDist().isClient() && configuration.clientConfiguration() != null) {
             this.client = FrameworkClient.factory().map(it -> it.create(this, configuration.clientConfiguration().get())).orElse(null);
@@ -140,12 +129,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
             // Summarise test results
             // TODO - maybe dump a GitHub-flavoured markdown file?
-            logger().info("Test summary processing..");
-            tests().all().forEach(test -> {
-                final Test.Status status = tests.getStatus(test.id());
-                logger().info("\tTest " + test.id() + ": ");
-                logger().info(status.result() + (status.message().isBlank() ? "" : " - " + status.message()));
-            });
+            logger().info("Test summary processing...");
+            logger.info("Test summary:\n{}", summaryDumper.createLoggingSummary());
             logger.info("Test Framework finished.");
         });
 
@@ -187,119 +172,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
     @Override
     public void registerCommands(LiteralArgumentBuilder<CommandSourceStack> node) {
         commandName = node.getLiteral();
-
-        final class CommandHelper {
-            private <T> SuggestionProvider<T> suggestGroupable(Predicate<Groupable> predicate) {
-                return (context, builder) -> {
-                    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-                    Stream.concat(
-                                    tests.tests.values().stream(),
-                                    tests.groups.values().stream()
-                            )
-                            .filter(predicate)
-                            .map(groupable -> groupable instanceof Test test ? test.id() : "g:" + ((Group) groupable).id())
-                            .filter(it -> it.toLowerCase(Locale.ROOT).startsWith(remaining))
-                            .forEach(builder::suggest);
-                    return builder.buildFuture();
-                };
-            }
-
-            private <T> SuggestionProvider<T> suggestTest(Predicate<Test> predicate) {
-                return (context, builder) -> {
-                    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-                    tests.tests.values().stream()
-                            .filter(predicate)
-                            .map(Test::id)
-                            .filter(it -> it.toLowerCase(Locale.ROOT).startsWith(remaining))
-                            .forEach(builder::suggest);
-                    return builder.buildFuture();
-                };
-            }
-
-            private void parseGroupable(CommandSourceStack stack, String id, Consumer<Group> isGroup, Consumer<Test> isTest) {
-                if (id.startsWith("g:")) {
-                    final String grId = id.substring(2);
-                    tests.maybeGetGroup(grId).ifPresentOrElse(isGroup, () -> stack.sendFailure(Component.literal("Unknown test group with id '%s'!".formatted(grId))));
-                } else {
-                    tests.byId(id).ifPresentOrElse(isTest, () -> stack.sendFailure(Component.literal("Unknown test with id '%s'!".formatted(id))));
-                }
-            }
-
-            private Component formatStatus(Test.Status status) {
-                final MutableComponent resultComponent = Component.literal(status.result().toString()).withStyle(style -> style.withColor(status.result().getColour()));
-                if (status.message().isBlank()) {
-                    return resultComponent;
-                } else {
-                    return resultComponent.append(" - ").append(Component.literal(status.message()).withStyle(ChatFormatting.AQUA));
-                }
-            }
-
-            private int processSetStatus(CommandContext<CommandSourceStack> ctx, String message) {
-                final String id = StringArgumentType.getString(ctx, "id");
-                parseGroupable(ctx.getSource(), id,
-                        group -> ctx.getSource().sendFailure(Component.literal("This command does not support groups!")),
-                        test -> {
-                            final Test.Result result = ctx.getArgument("result", Test.Result.class);
-                            final Test.Status status = new Test.Status(result, message);
-                            changeStatus(test, status, ctx.getSource().getEntity());
-                            ctx.getSource().sendSuccess(
-                                    Component.literal("Status of test '").append(id).append("' has been changed to: ").append(formatStatus(status)), true
-                            );
-                        });
-                return Command.SINGLE_SUCCESS;
-            }
-        }
-
-        final CommandHelper helper = new CommandHelper();
-        final BiFunction<LiteralArgumentBuilder<CommandSourceStack>, Boolean, LiteralArgumentBuilder<CommandSourceStack>> commandEnabling = (stack, enabling) ->
-                stack.requires(it -> it.hasPermission(configuration.commandRequiredPermission()))
-                    .then(argument("id", StringArgumentType.greedyString())
-                            .suggests(helper.suggestGroupable(it -> !(it instanceof Test test) || tests.isEnabled(test.id()) != enabling))
-                            .executes(ctx -> {
-                                final String id = StringArgumentType.getString(ctx, "id");
-                                helper.parseGroupable(ctx.getSource(), id, group -> {
-                                    final List<Test> all = group.resolveAll();
-                                    if (all.stream().allMatch(it -> tests.isEnabled(it.id()) == enabling)) {
-                                        ctx.getSource().sendFailure(Component.literal("All tests in group are " + (enabling ? "enabled" : "disabled") + "!"));
-                                    } else {
-                                        all.forEach(test -> setEnabled(test, enabling, ctx.getSource().getEntity()));
-                                        ctx.getSource().sendSuccess(Component.literal((enabling ? "Enabled" : "Disabled") + " test group!"), true);
-                                    }
-                                }, test -> {
-                                    if (tests().isEnabled(id) == enabling) {
-                                        ctx.getSource().sendFailure(Component.literal("Test is already " + (enabling ? "enabled" : "disabled") + "!"));
-                                    } else {
-                                        setEnabled(tests.tests.get(id), enabling, ctx.getSource().getEntity());
-                                        ctx.getSource().sendSuccess(Component.literal((enabling ? "Enabled" : "Disabled") + " test!"), true);
-                                    }
-                                });
-                                return Command.SINGLE_SUCCESS;
-                            }));
-
-        node.then(commandEnabling.apply(literal("enable"), true));
-        node.then(commandEnabling.apply(literal("disable"), false));
-
-        node.then(literal("status")
-                .then(literal("get")
-                        .then(argument("id", StringArgumentType.greedyString())
-                                .suggests(helper.suggestTest(test -> tests.isEnabled(test.id())))
-                                .executes(ctx -> {
-                                    final String id = StringArgumentType.getString(ctx, "id");
-                                    helper.parseGroupable(ctx.getSource(), id,
-                                            group -> ctx.getSource().sendFailure(Component.literal("This command does not support groups!")),
-                                            test -> ctx.getSource().sendSuccess(
-                                                    Component.literal("Status of test '").append(id).append("' is: ").append(helper.formatStatus(tests.getStatus(id))), true
-                                            ));
-                                    return Command.SINGLE_SUCCESS;
-                                })))
-                .then(literal("set")
-                        .requires(it -> it.hasPermission(configuration.commandRequiredPermission()))
-                        .then(argument("id", StringArgumentType.string())
-                                .suggests(helper.suggestTest(test -> tests.isEnabled(test.id())))
-                                .then(argument("result", EnumArgument.enumArgument(Test.Result.class))
-                                        .executes(it -> helper.processSetStatus(it, ""))
-                                        .then(argument("message", StringArgumentType.greedyString())
-                                                .executes(it -> helper.processSetStatus(it, StringArgumentType.getString(it, "message"))))))));
+        new Commands(this).register(node);
     }
 
     @Override
@@ -342,8 +215,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             }
         });
 
-        modBus.addListener((final FMLCommonSetupEvent event) -> setupPackets());
-        modBus.addListener((final RegisterGameTestsEvent event) -> LamdbaExceptionUtils.uncheck(() -> event.register(TestFrameworkImpl.class.getDeclaredMethod("registerGameTests"))));
+        modBus.addListener(new TFPackets(channel, this)::onCommonSetup);
+        modBus.addListener((final RegisterGameTestsEvent event) -> event.register(GameTestRegistration.REGISTER_METHOD));
 
         if (FMLLoader.getDist().isClient()) {
             setupClient(this, modBus, container);
@@ -354,41 +227,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         byStage.get(OnInit.Stage.AFTER_SETUP).forEach(cons -> cons.accept(this));
     }
 
-    @GameTestGenerator
-    public static List<TestFunction> registerGameTests() {
-        final List<TestFunction> tests = new ArrayList<>();
-        for (final TestFrameworkImpl framework : FRAMEWORKS) {
-            for (final Test test : framework.tests().tests.values()) {
-                final GameTestData data = test.asGameTest();
-                if (data != null) {
-                    final String batchName = test.groups().size() > 0 ? test.groups().get(0) : "ungrouped";
-                    tests.add(new TestFunction(
-                            data.batchName() == null ? batchName : data.batchName(),
-                            test.id(), data.structureName(),
-                            data.rotation(), data.maxTicks(), data.setupTicks(),
-                            data.required(), data.requiredSuccesses(), data.maxAttempts(),
-                            helper -> {
-                                framework.setEnabled(test, true, null);
-                                framework.changeStatus(test, Test.Status.DEFAULT, null); // Reset the status, just in case
-
-                                try {
-                                    data.function().accept(helper);
-                                } catch (GameTestAssertException assertion) {
-                                    framework.tests().setStatus(test.id(), new Test.Status(Test.Result.FAILED, assertion.getMessage()));
-                                    throw assertion;
-                                }
-
-                                final Test.Status status = framework.tests().getStatus(test.id());
-                                if (status.result().passed()) helper.succeed();
-                                else if (status.result().failed()) helper.fail(status.message());
-                            }
-                    ));
-                }
-            }
-        }
-        return tests;
-    }
-
     private static void setupClient(TestFrameworkImpl impl, IEventBus modBus, ModContainer container) {
         if (impl.client != null) impl.client.init(modBus, container);
         MinecraftForge.EVENT_BUS.addListener((final ClientPlayerNetworkEvent.LoggingIn logOut) -> {
@@ -397,32 +235,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             }
             impl.tests().initialiseDefaultEnabledTests();
         });
-    }
-
-    private void setupPackets() {
-        class Registrar {
-            private final SimpleChannel channel;
-            int id = 0;
-
-            Registrar(SimpleChannel channel) {
-                this.channel = channel;
-            }
-
-            <P extends TFPacket> void register(Class<P> pkt, BiFunction<TestFrameworkInternal, FriendlyByteBuf, P> decoder) {
-                channel.messageBuilder(pkt, id++)
-                        .consumerMainThread((packet, contextSupplier) -> {
-                            final var ctx = contextSupplier.get();
-                            packet.handle(ctx);
-                        })
-                        .encoder(TFPacket::encode)
-                        .decoder(buf -> decoder.apply(TestFrameworkImpl.this, buf))
-                        .add();
-            }
-        }
-
-        final Registrar registrar = new Registrar(channel);
-        registrar.register(ChangeStatusPacket.class, ChangeStatusPacket::decode);
-        registrar.register(ChangeEnabledPacket.class, ChangeEnabledPacket::decode);
     }
 
     @Override
@@ -498,52 +310,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             if (remoteClient != null && configuration.modifiableByClients()) remoteClient.run();
         } else if (FMLLoader.getDist().isDedicatedServer() && server != null) {
             if (onServer != null && configuration.clientSynced()) onServer.run();
-        }
-    }
-
-    /**
-     * Set the {@link #logger} to only write to logs/tests/{@code id}.log
-     */
-    private void prepareLogger() {
-        final LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-        final Configuration config = ctx.getConfiguration();
-        final LoggerConfig loggerConfig = getLoggerConfiguration(config, logger.getName());
-
-        final RollingRandomAccessFileAppender appender = RollingRandomAccessFileAppender.newBuilder()
-                .setName("TestFramework " + id + " log")
-                .withFileName("logs/tests/" + id.toString().replace(":", "_") + ".log")
-                .withFilePattern("logs/%d{yyyy-MM-dd}-%i.log.gz")
-                .setLayout(PatternLayout.newBuilder()
-                        .withPattern("[%d{ddMMMyyyy HH:mm:ss}] [%logger]: %minecraftFormatting{%msg}{strip}%n%xEx")
-                        .build()
-                )
-                .withPolicy(
-                        OnStartupTriggeringPolicy.createPolicy(1)
-                )
-                .build();
-
-        appender.start();
-
-        loggerConfig.setParent(null);
-        loggerConfig.getAppenders().keySet().forEach(loggerConfig::removeAppender);
-        loggerConfig.addAppender(
-                appender,
-                Level.DEBUG,
-                null
-        );
-    }
-
-    private static LoggerConfig getLoggerConfiguration(@NotNull final Configuration configuration, @NotNull final String loggerName) {
-        final LoggerConfig lc = configuration.getLoggerConfig(loggerName);
-        if (lc.getName().equals(loggerName)) {
-            return lc;
-        } else {
-            final LoggerConfig nlc = new LoggerConfig(loggerName, lc.getLevel(), lc.isAdditive());
-            nlc.setParent(lc);
-            configuration.addLogger(loggerName, nlc);
-            configuration.getLoggerContext().updateLoggers();
-
-            return nlc;
         }
     }
 
