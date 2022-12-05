@@ -363,7 +363,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                 if (data != null) {
                     final String batchName = test.groups().size() > 0 ? test.groups().get(0) : "ungrouped";
                     tests.add(new TestFunction(
-                            batchName, test.id(), data.structureName(),
+                            data.batchName() == null ? batchName : data.batchName(),
+                            test.id(), data.structureName(),
                             data.rotation(), data.maxTicks(), data.setupTicks(),
                             data.required(), data.requiredSuccesses(), data.maxAttempts(),
                             helper -> {

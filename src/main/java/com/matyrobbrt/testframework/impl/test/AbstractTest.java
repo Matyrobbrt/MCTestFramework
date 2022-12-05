@@ -70,6 +70,7 @@ public abstract class AbstractTest implements Test {
     protected final void configureGameTest(@Nullable GameTest gameTest) {
         if (gameTest == null) return;
         this.gameTestData = new GameTestData(
+                gameTest.batch().equals("defaultBatch") ? null : gameTest.batch(),
                 gameTest.templateNamespace().isBlank() ? gameTest.template() : new ResourceLocation(gameTest.templateNamespace(), gameTest.template()).toString(),
                 gameTest.required(), gameTest.attempts(), gameTest.requiredSuccesses(),
                 this::onGameTest, gameTest.timeoutTicks(), gameTest.setupTicks(),
