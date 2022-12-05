@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * The base interface for tests in the TestFramework.
@@ -65,6 +66,14 @@ public interface Test extends Groupable {
      * {@return the visual information about the test}
      */
     Visuals visuals();
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    default Stream<Test> resolveAsStream() {
+        return Stream.of(this);
+    }
 
     /**
      * {@inheritDoc}
@@ -181,11 +190,16 @@ public interface Test extends Groupable {
     }
 
     enum Result {
-        PASSED(0x90ee90), FAILED(0xFfcccb), NOT_PROCESSED(0xA6A39E);
-        private final int colour;
+        PASSED(0x90ee90, "Passed"),
+        FAILED(0xFfcccb, "Failed"),
+        NOT_PROCESSED(0xA6A39E, "Not Processed");
 
-        Result(int colour) {
+        private final int colour;
+        private final String humanReadable;
+
+        Result(int colour, String humanReadable) {
             this.colour = colour;
+            this.humanReadable = humanReadable;
         }
 
         public int getColour() {
@@ -198,6 +212,10 @@ public interface Test extends Groupable {
 
         public boolean failed() {
             return this == FAILED;
+        }
+
+        public String asHumanReadable() {
+            return humanReadable;
         }
     }
 

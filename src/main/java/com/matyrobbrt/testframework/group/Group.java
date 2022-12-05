@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 public final class Group implements Groupable {
     private final String id;
@@ -49,8 +50,8 @@ public final class Group implements Groupable {
     }
 
     @Override
-    public @NotNull List<Test> resolveAll() {
-        return entries.stream().flatMap(gr -> gr.resolveAll().stream()).toList();
+    public @NotNull Stream<Test> resolveAsStream() {
+        return entries.stream().flatMap(gr -> gr.resolveAll().stream());
     }
 
     public void add(Groupable entry) {

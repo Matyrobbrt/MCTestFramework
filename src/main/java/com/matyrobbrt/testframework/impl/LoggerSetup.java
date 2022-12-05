@@ -44,7 +44,7 @@ public record LoggerSetup(TestFrameworkInternal framework) {
     private Appender fileAppender() {
         return started(RollingRandomAccessFileAppender.newBuilder()
                 .setName("TestFramework " + framework.id() + " file log")
-                .withFileName("logs/tests/" + framework.id().toString().replace(":", "_") + ".log")
+                .withFileName("logs/tests/" + framework.id().toString().replace(":", "_") + "/log.log")
                 .withFilePattern("logs/%d{yyyy-MM-dd}-%i.log.gz")
                 .setLayout(PatternLayout.newBuilder()
                         .withPattern("[%d{ddMMMyyyy HH:mm:ss}] [%logger]: %minecraftFormatting{%msg}{strip}%n%xEx")

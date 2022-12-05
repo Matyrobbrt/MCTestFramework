@@ -11,7 +11,6 @@ import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.group.Group;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
 import com.matyrobbrt.testframework.impl.packet.ChangeStatusPacket;
-import com.matyrobbrt.testframework.impl.packet.TFPacket;
 import com.matyrobbrt.testframework.impl.packet.TFPackets;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.datafixers.util.Pair;
@@ -19,7 +18,6 @@ import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -35,26 +33,22 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.RollingRandomAccessFileAppender;
-import org.apache.logging.log4j.core.appender.rolling.OnStartupTriggeringPolicy;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,22 +58,44 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.time.temporal.ChronoField.*;
 
 @ApiStatus.Internal
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class TestFrameworkImpl implements TestFrameworkInternal {
     static final Set<TestFrameworkImpl> FRAMEWORKS = Collections.synchronizedSet(new HashSet<>());
+
+    //@formatter:off
+    private static final DateTimeFormatter LOG_FORMAT = new DateTimeFormatterBuilder()
+            .parseCaseInsensitive()
+                .appendValue(DAY_OF_MONTH, 2)
+                .appendLiteral('-')
+                .appendValue(MONTH_OF_YEAR, 2)
+                .appendLiteral('-')
+                .appendValue(YEAR, 4)
+            .optionalStart()
+                .appendLiteral('_')
+                .parseLenient()
+                .appendValue(HOUR_OF_DAY, 2)
+                .appendLiteral('-')
+                .appendValue(MINUTE_OF_HOUR, 2)
+            .optionalEnd()
+            .toFormatter()
+            .withLocale(Locale.getDefault())
+            .withZone(ZoneId.systemDefault());
+    //@formatter:on
 
     private final FrameworkConfiguration configuration;
     private final @Nullable FrameworkClient client;
@@ -128,10 +144,25 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             server = event.getServer() == server ? null : server;
 
             // Summarise test results
-            // TODO - maybe dump a GitHub-flavoured markdown file?
             logger().info("Test summary processing...");
-            logger.info("Test summary:\n{}", summaryDumper.createLoggingSummary());
-            logger.info("Test Framework finished.");
+            logger().info("Test summary:\n{}", summaryDumper.createLoggingSummary());
+
+            final Path dumpPath = Path.of("logs/tests/" + id().toString().replace(":", "_") + "/summary_" + LOG_FORMAT.format(ZonedDateTime.now()) + ".md");
+            final String summary = """
+                    # Test Summary
+                    
+                    ## Disabled Tests
+                    %s
+                    
+                    ## Enabled Tests
+                    %s
+                    
+                    %s"""
+                    .formatted(summaryDumper.createDisabledList(), summaryDumper.createEnabledList(), summaryDumper.dumpTable());
+            LamdbaExceptionUtils.uncheck(() -> Files.createDirectories(dumpPath.getParent()));
+            LamdbaExceptionUtils.uncheck(() -> Files.writeString(dumpPath, summary));
+            logger().info("Dumped test summary to {}", dumpPath);
+            logger().info("Test Framework finished.");
         });
 
         MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedOutEvent event) -> playerTestStore().put(event.getEntity().getUUID(), tests.tests.keySet()));
