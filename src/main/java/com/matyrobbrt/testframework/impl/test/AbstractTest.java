@@ -123,11 +123,11 @@ public abstract class AbstractTest implements Test {
         framework.setEnabled(this, true, null);
     }
 
-    public Logger getLogger() {
+    public Logger logger() {
         return framework.logger();
     }
 
-    public Status getStatus() {
+    public Status status() {
         return framework.tests().getStatus(id());
     }
 
