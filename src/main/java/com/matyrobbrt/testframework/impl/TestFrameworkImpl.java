@@ -1,9 +1,11 @@
 package com.matyrobbrt.testframework.impl;
 
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.TestListener;
 import com.matyrobbrt.testframework.annotation.OnInit;
 import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
@@ -295,9 +297,13 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
     @Override
     public void changeStatus(Test test, Test.Status newStatus, @Nullable Entity changer) {
-        if (tests.getStatus(test.id()).equals(newStatus)) return; // If the status is the same, don't waste power
+        final Test.Status oldStatus = tests.getStatus(test.id());
+        if (oldStatus.equals(newStatus)) return; // If the status is the same, don't waste power
 
         tests.setStatus(test.id(), newStatus);
+
+        tests.globalListeners.forEach(listener -> listener.onStatusChange(this, test, oldStatus, newStatus, changer));
+        test.listeners().forEach(listener -> listener.onStatusChange(this, test, oldStatus, newStatus, changer));
 
         logger.info("Status of test '{}' has had status changed to {}{}.", test.id(), newStatus, changer instanceof Player player ? " by " + player.getGameProfile().getName() : "");
 
@@ -324,6 +330,10 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         if (enabled) {
             changeStatus(test, new Test.Status(Test.Result.NOT_PROCESSED, ""), changer);
         }
+
+        final Consumer<TestListener> listenerConsumer = enabled ? listener -> listener.onEnabled(this, test, changer) : listener -> listener.onDisabled(this, test, changer);
+        tests.globalListeners.forEach(listenerConsumer);
+        test.listeners().forEach(listenerConsumer);
 
         final ChangeEnabledPacket packet = new ChangeEnabledPacket(TestFrameworkImpl.this, test.id(), enabled);
         sendPacketIfOn(
@@ -352,6 +362,13 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         private final Map<String, EventListenerGroupImpl> collectors = new HashMap<>();
         private final Set<String> enabled = Collections.synchronizedSet(new LinkedHashSet<>());
         private final Map<String, Test.Status> statuses = new ConcurrentHashMap<>();
+
+        private final Set<TestListener> globalListeners = new HashSet<>();
+
+        @Override
+        public void addListener(TestListener listener) {
+            globalListeners.add(listener);
+        }
 
         @Override
         public Optional<Test> byId(String id) {

@@ -17,10 +17,7 @@ public class MethodBasedTest extends AbstractTest.Dynamic {
     public MethodBasedTest(Method method) {
         this.method = method;
 
-        final TestHolder marker = method.getAnnotation(TestHolder.class);
-        if (marker != null) {
-            configureFrom(method.getDeclaringClass().getAnnotation(ForEachTest.class), marker);
-        }
+        configureFrom(AnnotationHolder.method(method));
         configureGameTest(method.getAnnotation(GameTest.class));
 
         this.handle = HackyReflection.handle(method);

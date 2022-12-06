@@ -13,6 +13,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -89,6 +90,13 @@ public interface Test extends Groupable {
     @Nullable
     default GameTestData asGameTest() {
         return null;
+    }
+
+    /**
+     * {@return the listeners of this test}
+     */
+    default Collection<TestListener> listeners() {
+        return List.of();
     }
 
     /**

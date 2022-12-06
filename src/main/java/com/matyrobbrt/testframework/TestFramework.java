@@ -136,6 +136,13 @@ public interface TestFramework {
          */
         @UnmodifiableView
         Collection<Test> all();
+
+        /**
+         * Adds a global test listener.
+         *
+         * @param listener the listener
+         */
+        void addListener(TestListener listener);
     }
 
 }

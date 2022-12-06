@@ -90,6 +90,8 @@ dependencies {
     minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
 
     testCompileOnly sourceSets.main.output
+
+    testCompileOnly 'junit:junit:4.13.1'
 }
 
 jar {

@@ -1,11 +1,15 @@
 package com.matyrobbrt.testframework.testing;
 
 import com.matyrobbrt.testframework.DynamicTest;
+import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
+import com.matyrobbrt.testframework.TestListener;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.annotation.WithListener;
 import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
@@ -13,6 +17,9 @@ import net.minecraftforge.event.entity.player.AdvancementEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerXpEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
+import org.jetbrains.annotations.Nullable;
+
+import javax.annotation.ParametersAreNonnullByDefault;
 
 /**
  * This class contains player events. <br>
@@ -20,7 +27,8 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
  */
 @ForEachTest(
         idPrefix = "player_",
-        groups = PlayerEventsTest.GROUP
+        groups = PlayerEventsTest.GROUP,
+        listeners = PlayerEventsTest.ParentAddedListener.class
 )
 public class PlayerEventsTest {
     @TestGroup(name = "Player Events", parents = ExampleMod.ENTITY_EVENTS)
@@ -34,6 +42,7 @@ public class PlayerEventsTest {
             value = "change_gamemode",
             description = "The test passes when a player attempts to change their gamemode to spectator, which will also be prevented."
     )
+    @WithListener(TestAddedListener.class)
     static void onChangeGamemode(final DynamicTest test) {
         test.whenEnabled(buses -> buses.getFor(Bus.FORGE).addListener((final PlayerEvent.PlayerChangeGameModeEvent event) -> {
             if (event.getNewGameMode() == GameType.SPECTATOR) {
@@ -77,9 +86,28 @@ public class PlayerEventsTest {
             value = "earn_advancement",
             description = "The event passes when a player earns an advancement which should show a toast."
     )
+    @WithListener(TestAddedListener.class)
     private static void onEarnAdvancement(final AdvancementEvent event, final DynamicTest test) {
         if (event.getAdvancement().getDisplay() != null && event.getAdvancement().getDisplay().shouldShowToast()) {
             test.pass();
+        }
+    }
+
+    @ParametersAreNonnullByDefault
+    protected static final class ParentAddedListener implements TestListener {
+        @Override
+        public void onEnabled(TestFramework framework, Test test, @Nullable Entity changer) {
+            framework.logger().info("Parent added player events test listener detected test '{}' being enabled!", test.id());
+        }
+    }
+
+    @ParametersAreNonnullByDefault
+    protected static final class TestAddedListener implements TestListener {
+        @Override
+        public void onStatusChange(TestFramework framework, Test test, Test.Status oldStatus, Test.Status newStatus, @Nullable Entity changer) {
+            if (newStatus.result().passed()) {
+                framework.logger().info("Test added listener detected test '{}' passing!", test.id());
+            }
         }
     }
 }

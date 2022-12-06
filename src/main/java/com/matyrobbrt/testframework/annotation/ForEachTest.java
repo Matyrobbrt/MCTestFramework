@@ -1,5 +1,7 @@
 package com.matyrobbrt.testframework.annotation;
 
+import com.matyrobbrt.testframework.TestListener;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -30,6 +32,11 @@ public @interface ForEachTest {
         public String[] groups() {
             return new String[0];
         }
+
+        @Override
+        public Class<? extends TestListener>[] listeners() {
+            return new Class[0];
+        }
     };
 
     /**
@@ -41,4 +48,9 @@ public @interface ForEachTest {
      * {@return the groups in which child tests will be, by default}
      */
     String[] groups() default {};
+
+    /**
+     * {@return the listeners to add to all child tests}
+     */
+    Class<? extends TestListener>[] listeners() default {};
 }

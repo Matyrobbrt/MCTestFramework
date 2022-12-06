@@ -1,15 +1,20 @@
 package com.matyrobbrt.testframework.impl;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestInfo;
+import net.minecraft.gametest.framework.GameTestListener;
 import sun.misc.Unsafe;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.NoSuchFileException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -20,6 +25,7 @@ import java.util.stream.Stream;
 public final class HackyReflection {
     public static final Unsafe UNSAFE;
     public static final MethodHandles.Lookup LOOKUP;
+
     static {
         try {
             final Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
@@ -31,7 +37,7 @@ public final class HackyReflection {
             throw new RuntimeException("BARF!", e);
         }
     }
-    
+
     public static <T> T getStaticField(Class<?> clazz, String name) {
         try {
             final Field field = clazz.getDeclaredField(name);
@@ -42,13 +48,13 @@ public final class HackyReflection {
     }
 
     public static <T> T getStaticField(Field field) {
-        return (T)UNSAFE.getObject(UNSAFE.staticFieldBase(field), UNSAFE.staticFieldOffset(field));
+        return (T) UNSAFE.getObject(UNSAFE.staticFieldBase(field), UNSAFE.staticFieldOffset(field));
     }
 
     public static <T> T getInstanceField(Object instance, String name) {
         try {
             final Field field = instance.getClass().getDeclaredField(name);
-            return (T)UNSAFE.getObject(instance, UNSAFE.objectFieldOffset(field));
+            return (T) UNSAFE.getObject(instance, UNSAFE.objectFieldOffset(field));
         } catch (NoSuchFieldException e) {
             throw new RuntimeException("BARF!", e);
         }
@@ -115,5 +121,20 @@ public final class HackyReflection {
     public static Class<?> parentOrTopLevel(Class<?> clazz) {
         if (clazz.getEnclosingClass() != null) return clazz.getEnclosingClass();
         return clazz;
+    }
+
+    public static VarHandle varHandle(Class<?> clazz, String name) {
+        try {
+            final Field field = clazz.getDeclaredField(name);
+            return Modifier.isStatic(field.getModifiers()) ? LOOKUP.findStaticVarHandle(clazz, name, field.getType()) : LOOKUP.findVarHandle(clazz, name, field.getType());
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("BARF!", e);
+        }
+    }
+
+    private static final VarHandle TEST_INFO = varHandle(GameTestHelper.class, "testInfo");
+
+    public static void addListener(GameTestHelper helper, GameTestListener listener) {
+        ((GameTestInfo) TEST_INFO.get(helper)).addListener(listener);
     }
 }

@@ -3,8 +3,10 @@ package com.matyrobbrt.testframework.impl.test;
 import com.matyrobbrt.testframework.DynamicTest;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestFramework;
+import com.matyrobbrt.testframework.TestListener;
 import com.matyrobbrt.testframework.annotation.ForEachTest;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.annotation.WithListener;
 import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.impl.HackyReflection;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
@@ -20,13 +22,17 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -40,12 +46,10 @@ public abstract class AbstractTest implements Test {
     protected Visuals visuals;
     @Nullable
     protected GameTestData gameTestData;
+    protected final Set<TestListener> listeners = new HashSet<>();
 
     protected AbstractTest() {
-        final TestHolder marker = getClass().getAnnotation(TestHolder.class);
-        if (marker != null) {
-            configureFrom(HackyReflection.parentOrTopLevel(getClass()).getAnnotation(ForEachTest.class), marker);
-        }
+        configureFrom(AnnotationHolder.clazz(getClass()));
 
         try {
             final Method onGameTestMethod = getClass().getDeclaredMethod("onGameTest", GameTestHelper.class);
@@ -53,18 +57,28 @@ public abstract class AbstractTest implements Test {
         } catch (Exception ignored) {}
     }
 
-    protected final void configureFrom(@Nullable ForEachTest parent, TestHolder marker) {
+    protected final void configureFrom(AnnotationHolder holder) {
+        ForEachTest parent = holder.parent().get(ForEachTest.class);
         if (parent == null) parent = ForEachTest.DEFAULT;
 
-        id = parent.idPrefix() + marker.value();
-        enabledByDefault = marker.enabledByDefault();
-        visuals = new Visuals(
-                Component.literal(marker.title().isBlank() ? TestFrameworkImpl.capitaliseWords(id(), "_") : marker.title()),
-                Stream.of(marker.description()).<Component>map(Component::literal).toList()
-        );
+        final TestHolder marker = holder.get(TestHolder.class);
+        if (marker != null) {
+            id = parent.idPrefix() + marker.value();
+            enabledByDefault = marker.enabledByDefault();
+            visuals = new Visuals(
+                    Component.literal(marker.title().isBlank() ? TestFrameworkImpl.capitaliseWords(id(), "_") : marker.title()),
+                    Stream.of(marker.description()).<Component>map(Component::literal).toList()
+            );
+            groups.addAll(List.of(marker.groups()));
+        }
+
+        final WithListener withListener = holder.get(WithListener.class);
+        if (withListener != null) {
+            listeners.addAll(Stream.of(withListener.value()).map(TestListener::instantiate).toList());
+        }
 
         if (parent.groups().length > 0) groups.addAll(List.of(parent.groups()));
-        groups.addAll(List.of(marker.groups()));
+        listeners.addAll(Stream.of(parent.listeners()).map(TestListener::instantiate).toList());
     }
 
     protected final void configureGameTest(@Nullable GameTest gameTest) {
@@ -108,6 +122,11 @@ public abstract class AbstractTest implements Test {
     @Override
     public @Nullable GameTestData asGameTest() {
         return gameTestData;
+    }
+
+    @Override
+    public Set<TestListener> listeners() {
+        return listeners;
     }
 
     @Override
@@ -203,8 +222,7 @@ public abstract class AbstractTest implements Test {
         protected void onGameTest(GameTestHelper helper) {
             isDuringGameTest = true;
             super.onGameTest(helper);
-            this.onGameTest.forEach(test -> test.accept(helper));
-            subscribeToTest(helper, new GameTestListener() {
+            HackyReflection.addListener(helper, new GameTestListener() {
                 @Override
                 public void testStructureLoaded(GameTestInfo pTestInfo) {}
 
@@ -218,10 +236,7 @@ public abstract class AbstractTest implements Test {
                     isDuringGameTest = false;
                 }
             });
-        }
-
-        private void subscribeToTest(GameTestHelper helper, GameTestListener listener) {
-            HackyReflection.<GameTestInfo>getInstanceField(helper, "testInfo").addListener(listener);
+            this.onGameTest.forEach(test -> test.accept(helper));
         }
 
         @Override
@@ -237,6 +252,40 @@ public abstract class AbstractTest implements Test {
         @Override
         public void pass() {
             DynamicTest.super.pass();
+        }
+    }
+
+    protected interface AnnotationHolder {
+        @Nullable <T extends Annotation> T get(Class<T> type);
+
+        AnnotationHolder parent();
+
+        static AnnotationHolder clazz(Class<?> clazz) {
+            return new AnnotationHolder() {
+                @Override
+                public <T extends Annotation> @Nullable T get(Class<T> type) {
+                    return clazz.getAnnotation(type);
+                }
+
+                @Override
+                public AnnotationHolder parent() {
+                    return clazz(HackyReflection.parentOrTopLevel(clazz));
+                }
+            };
+        }
+
+        static AnnotationHolder method(Method method) {
+            return new AnnotationHolder() {
+                @Override
+                public <T extends Annotation> @Nullable T get(Class<T> type) {
+                    return method.getAnnotation(type);
+                }
+
+                @Override
+                public AnnotationHolder parent() {
+                    return clazz(method.getDeclaringClass());
+                }
+            };
         }
     }
 }

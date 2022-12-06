@@ -1,7 +1,5 @@
 package com.matyrobbrt.testframework.impl.test;
 
-import com.matyrobbrt.testframework.annotation.ForEachTest;
-import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.impl.HackyReflection;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -24,10 +22,7 @@ public class MethodBasedEventTest extends AbstractTest.Dynamic {
 
     public MethodBasedEventTest(Method method) {
         this.method = method;
-        final TestHolder marker = method.getAnnotation(TestHolder.class);
-        if (marker != null) {
-            configureFrom(method.getDeclaringClass().getAnnotation(ForEachTest.class), marker);
-        }
+        configureFrom(AnnotationHolder.method(method));
 
         //noinspection unchecked
         this.eventClass = (Class<? extends Event>) method.getParameterTypes()[0];
