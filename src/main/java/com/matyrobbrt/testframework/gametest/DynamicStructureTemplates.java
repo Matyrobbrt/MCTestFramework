@@ -2,10 +2,12 @@ package com.matyrobbrt.testframework.gametest;
 
 import com.matyrobbrt.testframework.impl.HackyReflection;
 import com.mojang.logging.LogUtils;
+import cpw.mods.modlauncher.api.INameMappingService;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.lang.invoke.MethodHandle;
@@ -22,11 +24,14 @@ import java.util.stream.Stream;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class DynamicStructureTemplates {
+    // StructureTemplateManager#sources
+    private static final String SOURCES_FIELD = ObfuscationReflectionHelper.remapName(INameMappingService.Domain.FIELD, "f_" + "230349_");
+
     private final Map<ResourceLocation, Supplier<StructureTemplate>> templates = new ConcurrentHashMap<>();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void setup(StructureTemplateManager manager) throws Throwable {
-        final List sources = new ArrayList(HackyReflection.<List>getInstanceField(manager, "sources"));
+        final List sources = new ArrayList(HackyReflection.<List>getInstanceField(manager, SOURCES_FIELD));
 
         final Class sourceClazz = Stream.of(StructureTemplateManager.class.getDeclaredClasses())
                 .filter(it -> it.getSimpleName().equals("Source")).findFirst().orElseThrow();
@@ -36,7 +41,7 @@ public class DynamicStructureTemplates {
         final Supplier<Stream<ResourceLocation>> lister = this::list;
         sources.add(ctor.invokeWithArguments(loader, lister));
 
-        HackyReflection.setInstanceField(manager, "sources", sources);
+        HackyReflection.setInstanceField(manager, SOURCES_FIELD, sources);
 
         LogUtils.getLogger().debug("Injected dynamic template source in manager {}", manager);
     }

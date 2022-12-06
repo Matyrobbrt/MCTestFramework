@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.gametest;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.matyrobbrt.testframework.impl.HackyReflection;
+import cpw.mods.modlauncher.api.INameMappingService;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
@@ -10,6 +11,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -27,9 +29,9 @@ import java.util.function.UnaryOperator;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class StructureTemplateBuilder implements TemplateBuilderHelper<StructureTemplateBuilder> {
-    private static final FieldHandle<StructureTemplate, Vec3i> SIZE = FieldHandle.getFor(StructureTemplate.class, "size");
-    private static final FieldHandle<StructureTemplate, List<StructureTemplate.Palette>> PALETTES = FieldHandle.getFor(StructureTemplate.class, "palettes");
-    private static final FieldHandle<StructureTemplate, List<StructureTemplate.StructureEntityInfo>> ENTITY_INFO_LIST = FieldHandle.getFor(StructureTemplate.class, "entityInfoList");
+    private static final FieldHandle<StructureTemplate, List<StructureTemplate.Palette>> PALETTES = FieldHandle.getFor(StructureTemplate.class, "f_" + "74482_");
+    private static final FieldHandle<StructureTemplate, List<StructureTemplate.StructureEntityInfo>> ENTITY_INFO_LIST = FieldHandle.getFor(StructureTemplate.class, "f_"+ "74483_");
+    private static final FieldHandle<StructureTemplate, Vec3i> SIZE = FieldHandle.getFor(StructureTemplate.class, "f_" + "74484_");
     private static final MethodHandle PALETTE_CONSTRUCTOR = HackyReflection.constructor(StructureTemplate.Palette.class, MethodType.methodType(void.class, List.class));
 
     private final Vec3i size;
@@ -103,6 +105,7 @@ public class StructureTemplateBuilder implements TemplateBuilderHelper<Structure
 
         @SuppressWarnings("unchecked")
         static <I, T> FieldHandle<I, T> getFor(Class<I> clazz, String fieldName) {
+            fieldName = ObfuscationReflectionHelper.remapName(INameMappingService.Domain.FIELD, fieldName);
             final Field field = HackyReflection.getField(clazz, fieldName);
             final MethodHandle handle = HackyReflection.fieldHandle(field);
             final long offset = HackyReflection.UNSAFE.objectFieldOffset(field);

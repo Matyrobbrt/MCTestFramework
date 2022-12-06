@@ -1,6 +1,5 @@
 package com.matyrobbrt.testframework.impl;
 
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
@@ -8,6 +7,7 @@ import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestListener;
 import com.matyrobbrt.testframework.annotation.OnInit;
 import com.matyrobbrt.testframework.collector.CollectorType;
+import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.group.Group;
@@ -145,6 +145,8 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         MinecraftForge.EVENT_BUS.addListener((final ServerStoppedEvent event) -> {
             server = event.getServer() == server ? null : server;
 
+            if (!configuration().isEnabled(Feature.SUMMARY_DUMP)) return;
+
             // Summarise test results
             logger().info("Test summary processing...");
             logger().info("Test summary:\n{}", summaryDumper.createLoggingSummary());
@@ -167,39 +169,41 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             logger().info("Test Framework finished.");
         });
 
-        MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedOutEvent event) -> playerTestStore().put(event.getEntity().getUUID(), tests.tests.keySet()));
-        MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedInEvent event) -> {
-            final Set<String> lastTests = playerTestStore().getLast(event.getEntity().getUUID());
-            if (lastTests == null) return;
+        if (configuration().isEnabled(Feature.TEST_STORE)) {
+            MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedOutEvent event) -> playerTestStore().put(event.getEntity().getUUID(), tests.tests.keySet()));
+            MinecraftForge.EVENT_BUS.addListener((final PlayerEvent.PlayerLoggedInEvent event) -> {
+                final Set<String> lastTests = playerTestStore().getLast(event.getEntity().getUUID());
+                if (lastTests == null) return;
 
-            final Set<String> newTests = Sets.difference(tests.tests.keySet(), lastTests);
-            if (newTests.isEmpty()) return;
+                final Set<String> newTests = Sets.difference(tests.tests.keySet(), lastTests);
+                if (newTests.isEmpty()) return;
 
-            MutableComponent message = Component.literal("Welcome, ").append(event.getEntity().getName()).append("!")
-                    .append("\nThis server has the test framework enabled, so here are some of the tests that were added in your absence:\n");
-            final Iterator<Component> tests = newTests.stream()
-                    .limit(20)
-                    .flatMap(it -> tests().byId(it).stream())
-                    .<Component>map(it -> Component.literal("• ")
-                            .append(it.visuals().title()).append(" - ").append(tests().isEnabled(it.id()) ?
-                                    Component.literal("disable")
-                                            .withStyle(style -> style
-                                                    .withColor(ChatFormatting.RED).withBold(true)
-                                                    .withClickEvent(disableCommand(it.id()))) :
-                                    Component.literal("enable")
-                                            .withStyle(style -> style
-                                                    .withColor(ChatFormatting.GREEN).withBold(true)
-                                                    .withClickEvent(enableCommand(it.id())))
-                            )).iterator();
-            while (tests.hasNext()) {
-                final Component current = tests.next();
-                message = message.append(current);
-                if (tests.hasNext()) {
-                    message = message.append("\n");
+                MutableComponent message = Component.literal("Welcome, ").append(event.getEntity().getName()).append("!")
+                        .append("\nThis server has the test framework enabled, so here are some of the tests that were added in your absence:\n");
+                final Iterator<Component> tests = newTests.stream()
+                        .limit(20)
+                        .flatMap(it -> tests().byId(it).stream())
+                        .<Component>map(it -> Component.literal("• ")
+                                .append(it.visuals().title()).append(" - ").append(tests().isEnabled(it.id()) ?
+                                        Component.literal("disable")
+                                                .withStyle(style -> style
+                                                        .withColor(ChatFormatting.RED).withBold(true)
+                                                        .withClickEvent(disableCommand(it.id()))) :
+                                        Component.literal("enable")
+                                                .withStyle(style -> style
+                                                        .withColor(ChatFormatting.GREEN).withBold(true)
+                                                        .withClickEvent(enableCommand(it.id())))
+                                )).iterator();
+                while (tests.hasNext()) {
+                    final Component current = tests.next();
+                    message = message.append(current);
+                    if (tests.hasNext()) {
+                        message = message.append("\n");
+                    }
                 }
-            }
-            event.getEntity().sendSystemMessage(message);
-        });
+                event.getEntity().sendSystemMessage(message);
+            });
+        }
     }
 
     @Override
@@ -348,9 +352,9 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         if (FMLLoader.getDist().isClient() && server != null) {
             if (singlePlayer != null) singlePlayer.run();
         } else if (FMLLoader.getDist().isClient()) {
-            if (remoteClient != null && configuration.modifiableByClients()) remoteClient.run();
+            if (remoteClient != null && configuration.isEnabled(Feature.CLIENT_MODIFICATIONS)) remoteClient.run();
         } else if (FMLLoader.getDist().isDedicatedServer() && server != null) {
-            if (onServer != null && configuration.clientSynced()) onServer.run();
+            if (onServer != null && configuration.isEnabled(Feature.CLIENT_SYNC)) onServer.run();
         }
     }
 

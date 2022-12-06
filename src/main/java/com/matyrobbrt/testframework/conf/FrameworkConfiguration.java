@@ -13,7 +13,9 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +24,7 @@ import java.util.function.Supplier;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public record FrameworkConfiguration(
-        ResourceLocation id, boolean clientSynced, boolean modifiableByClients, int commandRequiredPermission,
+        ResourceLocation id, Collection<Feature> enabledFeatures, int commandRequiredPermission,
         SimpleChannel networkingChannel, List<String> enabledTests, @Nullable Supplier<ClientConfiguration> clientConfiguration,
         Map<CollectorType<?>, Collector<?>> collectors
 ) {
@@ -35,15 +37,19 @@ public record FrameworkConfiguration(
         return (Collector<Z>) collectors.getOrDefault(type, (c, a) -> {});
     }
 
+    public boolean isEnabled(Feature feature) {
+        return enabledFeatures.contains(feature);
+    }
+
     public TestFrameworkInternal create() {
         return new TestFrameworkImpl(this);
     }
 
     public static final class Builder {
         private final ResourceLocation id;
+        private final Collection<Feature> features = EnumSet.noneOf(Feature.class);
         private final Map<CollectorType<?>, Collector<?>> collectors = new HashMap<>();
 
-        private boolean clientSynced = false, modifiableByClients = false;
         private int commandRequiredPermission = Commands.LEVEL_GAMEMASTERS;
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
@@ -52,14 +58,19 @@ public record FrameworkConfiguration(
 
         public Builder(ResourceLocation id) {
             this.id = id;
+
+            for (final Feature value : Feature.values()) {
+                if (value.isEnabledByDefault()) enable(value);
+            }
         }
 
-        public Builder syncToClients() {
-            this.clientSynced = true;
+        public Builder enable(Feature... features) {
+            this.features.addAll(List.of(features));
             return this;
         }
-        public Builder allowClientModifications() {
-            this.modifiableByClients = true;
+
+        public Builder disable(Feature... features) {
+            this.features.removeAll(List.of(features));
             return this;
         }
 
@@ -101,7 +112,7 @@ public record FrameworkConfiguration(
                             .networkProtocolVersion(() -> "yes")
                             .simpleChannel() : networkingChannel;
             return new FrameworkConfiguration(
-                    id, clientSynced, modifiableByClients, commandRequiredPermission,
+                    id, features, commandRequiredPermission,
                     channel, enabledTests, clientConfiguration,
                     Collections.unmodifiableMap(collectors)
             );

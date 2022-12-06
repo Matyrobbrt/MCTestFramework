@@ -1,9 +1,11 @@
 package com.matyrobbrt.testframework.impl;
 
+import cpw.mods.modlauncher.api.INameMappingService;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import sun.misc.Unsafe;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -132,7 +134,7 @@ public final class HackyReflection {
         }
     }
 
-    private static final VarHandle TEST_INFO = varHandle(GameTestHelper.class, "testInfo");
+    private static final VarHandle TEST_INFO = varHandle(GameTestHelper.class, ObfuscationReflectionHelper.remapName(INameMappingService.Domain.FIELD, "f_" + "127595_"));
 
     public static void addListener(GameTestHelper helper, GameTestListener listener) {
         ((GameTestInfo) TEST_INFO.get(helper)).addListener(listener);

@@ -6,6 +6,7 @@ import com.matyrobbrt.testframework.annotation.TestHolder;
 import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.collector.Collectors;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
+import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
@@ -53,7 +54,8 @@ public class ExampleMod {
                         .toggleOverlayKey(GLFW.GLFW_KEY_J)
                         .openManagerKey(GLFW.GLFW_KEY_N)
                         .build())
-                .allowClientModifications().syncToClients()
+
+                .enable(Feature.CLIENT_SYNC, Feature.CLIENT_MODIFICATIONS, Feature.TEST_STORE)
 
                 .withCollector(CollectorType.TESTS, Collectors.Tests.forMethodsWithAnnotation(TestHolder.class))
                 .withCollector(CollectorType.TESTS, Collectors.Tests.forClassesWithAnnotation(TestHolder.class))

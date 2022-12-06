@@ -1,6 +1,7 @@
 package com.matyrobbrt.testframework.impl.packet;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,7 +23,7 @@ public record ChangeStatusPacket(TestFrameworkInternal framework, String testId,
             case PLAY_TO_CLIENT -> framework.tests().setStatus(testId, status);
             case PLAY_TO_SERVER -> {
                 final ServerPlayer player = Objects.requireNonNull(context.getSender());
-                if (framework.configuration().modifiableByClients() && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
+                if (framework.configuration().isEnabled(Feature.CLIENT_MODIFICATIONS) && Objects.requireNonNull(player.getServer()).getPlayerList().isOp(player.getGameProfile())) {
                     framework.tests().byId(testId).ifPresent(test -> framework.changeStatus(test, status, player));
                 }
             }

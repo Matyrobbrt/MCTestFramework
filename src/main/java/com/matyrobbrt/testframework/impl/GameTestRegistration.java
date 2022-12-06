@@ -1,6 +1,7 @@
 package com.matyrobbrt.testframework.impl;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.gametest.GameTestData;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraft.gametest.framework.GameTestAssertException;
@@ -21,6 +22,8 @@ public final class GameTestRegistration {
     public static List<TestFunction> register() {
         final List<TestFunction> tests = new ArrayList<>();
         for (final TestFrameworkImpl framework : TestFrameworkImpl.FRAMEWORKS) {
+            if (!framework.configuration().isEnabled(Feature.GAMETEST)) continue;
+
             for (final Test test : framework.tests().all()) {
                 final GameTestData data = test.asGameTest();
                 if (data != null) {
