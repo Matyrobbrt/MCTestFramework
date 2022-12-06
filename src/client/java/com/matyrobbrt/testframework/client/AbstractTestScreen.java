@@ -52,13 +52,12 @@ public abstract class AbstractTestScreen extends Screen {
 
         public GroupableList(BooleanSupplier isGrouped, List<Group> groups, Supplier<Stream<Test>> tests, Minecraft pMinecraft, int pWidth, int pHeight, int pY0, int pY1, int pItemHeight) {
             super(pMinecraft, pWidth, pHeight, pY0, pY1, pItemHeight);
-            this.entryGetter = search -> isGrouped.getAsBoolean() ?
-                    groups.stream()
+            this.entryGetter = search -> isGrouped.getAsBoolean()
+                    ? groups.stream()
                             .filter(it -> it.title().getString().toLowerCase(Locale.ROOT).contains(search))
                             .sorted(Comparator.comparing(gr -> gr.title().getString()))
                             .map(GroupEntry::new).toList()
-                    :
-                    withGroups(tests.get()
+                    : withGroups(tests.get()
                             .filter(it -> it.visuals().title().getString().toLowerCase(Locale.ROOT).contains(search))
                             .sorted(Comparator.comparing(test -> test.visuals().title().getString())), groups).toList();
         }

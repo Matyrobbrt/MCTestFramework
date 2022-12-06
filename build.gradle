@@ -31,6 +31,9 @@ publishing {
             url "file://${project.projectDir}/mcmodsrepo"
         }
     }
+    test {
+
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -64,19 +67,21 @@ if (rootProject === project && project.name == 'testframework') {
         // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg') // Currently, this location cannot be changed from the default.
 
         runs {
+            configureEach {
+                mods {
+                    examplemod {
+                        source sourceSets.main
+                        source sourceSets.test
+                        source sourceSets.client
+                    }
+                }
+            }
             client {
                 workingDirectory project.file('run')
 
                 property 'forge.logging.console.level', 'debug'
 
                 property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-                mods {
-                    examplemod {
-                        source sourceSets.main
-                        source sourceSets.client
-                    }
-                }
             }
 
             server {
@@ -87,13 +92,6 @@ if (rootProject === project && project.name == 'testframework') {
                 property 'forge.logging.console.level', 'debug'
 
                 property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-                mods {
-                    examplemod {
-                        source sourceSets.main
-                        source sourceSets.client
-                    }
-                }
             }
 
             gameTestServer {
@@ -104,13 +102,6 @@ if (rootProject === project && project.name == 'testframework') {
                 property 'forge.logging.console.level', 'debug'
 
                 property 'forge.enabledGameTestNamespaces', 'examplemod'
-
-                mods {
-                    examplemod {
-                        source sourceSets.main
-                        source sourceSets.client
-                    }
-                }
             }
 
             data {
@@ -121,19 +112,14 @@ if (rootProject === project && project.name == 'testframework') {
                 property 'forge.logging.console.level', 'debug'
 
                 args '--mod', 'examplemod', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
-
-                mods {
-                    examplemod {
-                        source sourceSets.main
-                        source sourceSets.client
-                    }
-                }
             }
         }
     }
 
     dependencies {
         minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
+
+        testCompileOnly sourceSets.main.output
     }
 
     jar.finalizedBy('reobfJar')
@@ -142,10 +128,13 @@ if (rootProject === project && project.name == 'testframework') {
         main {
             compileClasspath += project(':forge').sourceSets.main.compileClasspath
         }
+        test {
+            compileClasspath += project(':forge').sourceSets.main.compileClasspath
+        }
     }
     dependencies {
         implementation(project(':forge')) {
-              exclude group: 'net.minecraft'
+            exclude group: 'net.minecraft'
         }
     }
 }

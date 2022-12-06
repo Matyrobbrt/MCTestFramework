@@ -1,7 +1,8 @@
 package com.matyrobbrt.testframework;
 
+import com.matyrobbrt.testframework.gametest.GameTestData;
 import com.matyrobbrt.testframework.group.Groupable;
-import net.minecraft.ChatFormatting;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
@@ -9,13 +10,19 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * The base interface for tests in the TestFramework.
  */
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
 public interface Test extends Groupable {
     /**
      * {@return the ID of this test}
@@ -65,13 +72,38 @@ public interface Test extends Groupable {
      * {@inheritDoc}
      */
     @Override
+    default Stream<Test> resolveAsStream() {
+        return Stream.of(this);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     default List<Test> resolveAll() {
         return List.of(this);
     }
 
     /**
+     * {@return the game test version of this test}
+     */
+    @Nullable
+    default GameTestData asGameTest() {
+        return null;
+    }
+
+    /**
+     * {@return the listeners of this test}
+     */
+    default Collection<TestListener> listeners() {
+        return List.of();
+    }
+
+    /**
      * A group of collectors by {@link net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus bus}.
      */
+    @ParametersAreNonnullByDefault
+    @MethodsReturnNonnullByDefault
     interface EventListenerGroup {
         /**
          * Gets the collector for a bus.
@@ -84,6 +116,8 @@ public interface Test extends Groupable {
         /**
          * A collector of event listeners which automatically unregisters listeners when a test is disabled.
          */
+        @ParametersAreNonnullByDefault
+        @MethodsReturnNonnullByDefault
         interface EventListenerCollector {
             /**
              * Register an instance object or a {@linkplain Class}, and add listeners for all {@link SubscribeEvent} annotated methods
@@ -110,6 +144,19 @@ public interface Test extends Groupable {
             void unregisterAll();
 
             /**
+             * Add a consumer listener with the specified {@link EventPriority} and potentially cancelled events. <br>
+             * Use this method when one of the other methods fails to determine the concrete {@link Event} subclass that is
+             * intended to be subscribed to.
+             *
+             * @param priority         the priority of the listener
+             * @param receiveCancelled indicate if this listener should receive events that have been {@link Cancelable} cancelled
+             * @param eventType        the concrete {@link Event} subclass to subscribe to
+             * @param consumer         callback to invoke when a matching event is received
+             * @param <T>              the {@link Event} subclass to listen for
+             */
+            <T extends Event> void addListener(EventPriority priority, boolean receiveCancelled, Class<T> eventType, Consumer<T> consumer);
+
+            /**
              * Add a consumer listener with the specified {@link EventPriority} and potentially cancelled events.
              *
              * @param priority         the priority of the listener
@@ -133,11 +180,13 @@ public interface Test extends Groupable {
 
     /**
      * Represents the status of a test.
-     * @param result the result
+     *
+     * @param result  the result
      * @param message the message, providing additional context if the test failed
      */
     record Status(Result result, String message) {
         public static final Status DEFAULT = new Status(Result.NOT_PROCESSED, "");
+
         @Override
         public String toString() {
             if (message.isBlank()) {
@@ -149,11 +198,16 @@ public interface Test extends Groupable {
     }
 
     enum Result {
-        PASSED(0x90ee90), FAILED(0xFfcccb), NOT_PROCESSED(0xA6A39E);
-        private final int colour;
+        PASSED(0x90ee90, "Passed"),
+        FAILED(0xFfcccb, "Failed"),
+        NOT_PROCESSED(0xA6A39E, "Not Processed");
 
-        Result(int colour) {
+        private final int colour;
+        private final String humanReadable;
+
+        Result(int colour, String humanReadable) {
             this.colour = colour;
+            this.humanReadable = humanReadable;
         }
 
         public int getColour() {
@@ -162,6 +216,14 @@ public interface Test extends Groupable {
 
         public boolean passed() {
             return this == PASSED;
+        }
+
+        public boolean failed() {
+            return this == FAILED;
+        }
+
+        public String asHumanReadable() {
+            return humanReadable;
         }
     }
 

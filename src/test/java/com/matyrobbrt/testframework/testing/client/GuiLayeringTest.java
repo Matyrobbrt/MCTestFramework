@@ -1,8 +1,8 @@
 package com.matyrobbrt.testframework.testing.client;
 
-import com.matyrobbrt.testframework.ExampleMod;
+import com.matyrobbrt.testframework.testing.ExampleMod;
 import com.matyrobbrt.testframework.annotation.TestHolder;
-import com.matyrobbrt.testframework.impl.AbstractTest;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.client.Minecraft;
@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLLoader;
@@ -20,12 +21,13 @@ import java.util.Random;
 @TestHolder(
         value = "gui_layering",
         groups = ExampleMod.CLIENT_TESTS,
-        description = "Checks if GUI layer works."
+        description = "Checks if GUI layer works.",
+        side = Dist.CLIENT
 )
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class GuiLayeringTest extends AbstractTest {
-    public class TestLayer extends Screen {
+    public final class TestLayer extends Screen {
         private static final Random RANDOM = new Random();
         protected TestLayer(Component titleIn) {
             super(titleIn);

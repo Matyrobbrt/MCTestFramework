@@ -22,8 +22,8 @@ public @interface TestGroup {
     boolean enabledByDefault() default false;
 
     /**
+     * {@return the parents of this group} <br>
      * Note: group parents are also computed using {@code id().split(".")}.<br>
-     * {@return the parents of this group}
      */
     String[] parents() default {};
 }

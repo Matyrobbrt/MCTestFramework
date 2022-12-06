@@ -1,15 +1,21 @@
-package com.matyrobbrt.testframework;
+package com.matyrobbrt.testframework.testing;
 
+import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.collector.CollectorType;
+import com.matyrobbrt.testframework.collector.Collectors;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
+import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
+import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -34,16 +40,31 @@ public class ExampleMod {
     @TestGroup(name = "Blocks", parents = LEVEL_RELATED_EVENTS)
     public static final String BLOCK_TESTS = "blocks";
 
+    @RegisterStructureTemplate("examplemod:test_template")
+    static final StructureTemplate TEMPLATE = StructureTemplateBuilder.withSize(13, 13, 13)
+            .set(7, 7, 7, Blocks.ACACIA_LOG.defaultBlockState())
+            .build();
+
+    @RegisterStructureTemplate("examplemod:empty_1x1")
+    static final StructureTemplate EMPTY_1x1 = StructureTemplateBuilder.empty(1, 1, 1);
+
     public ExampleMod() {
-        if (true) return;
         final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()
                         .toggleOverlayKey(GLFW.GLFW_KEY_J)
                         .openManagerKey(GLFW.GLFW_KEY_N)
                         .build())
-                .allowClientModifications().syncToClients()
-                .testCollector(FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class))
-                .groupConfigurationCollector(TestGroup.class, it -> Component.literal(it.name()), TestGroup::enabledByDefault, TestGroup::parents)
+
+                .enable(Feature.CLIENT_SYNC, Feature.CLIENT_MODIFICATIONS, Feature.TEST_STORE)
+
+                .withCollector(CollectorType.TESTS, Collectors.Tests.forMethodsWithAnnotation(TestHolder.class))
+                .withCollector(CollectorType.TESTS, Collectors.Tests.forClassesWithAnnotation(TestHolder.class))
+                .withCollector(CollectorType.TESTS, Collectors.Tests.eventTestMethodsWithAnnotation(TestHolder.class))
+
+                .withCollector(CollectorType.INIT_LISTENERS, Collectors.defaultOnInitCollector())
+                .withCollector(CollectorType.STRUCTURE_TEMPLATES, Collectors.defaultTemplateCollector())
+                .withCollector(CollectorType.GROUP_DATA, Collectors.defaultGroupCollector())
+
                 .build().create();
         framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());
 

@@ -19,6 +19,7 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -27,7 +28,6 @@ import java.util.stream.Collectors;
 
 public final class TestsOverlay implements IGuiOverlay {
     public static final int MAX_DISPLAYED = 5;
-    // TODO - this will need to be rendered with transparency instead of using an already-transparent texture
     public static final ResourceLocation BG_TEXTURE = new ResourceLocation("testframework", "textures/gui/background.png");
 
     private final TestFrameworkInternal impl;
@@ -200,17 +200,21 @@ public final class TestsOverlay implements IGuiOverlay {
         final Component title = statusColoured(test.visuals().title(), status);
         rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, title, x$, y$, colour)));
 
-        final List<FormattedCharSequence> extras = new ArrayList<>();
-        if (Screen.hasShiftDown()) extras.addAll(test.visuals().description().stream().flatMap(it -> font.split(it, maxWidth).stream()).toList());
+        final List<Component> extras = new ArrayList<>();
+        if (Screen.hasShiftDown()) extras.addAll(test.visuals().description());
         if (status.result() != Test.Result.PASSED && !status.message().isBlank()) {
-            extras.add(Component.literal("!!! " + status.message()).withStyle(ChatFormatting.RED).getVisualOrderText());
+            extras.add(Component.literal("!!! " + status.message()).withStyle(ChatFormatting.RED));
         }
 
         int maxX = x;
         y += font.lineHeight + 2;
         if (!extras.isEmpty()) {
             x += 6;
-            for (final FormattedCharSequence extra : extras) {
+            Iterator<FormattedCharSequence> charSequences = extras.stream()
+                    .flatMap(it -> font.split(it, maxWidth).stream())
+                    .iterator();
+            while (charSequences.hasNext()) {
+                final FormattedCharSequence extra = charSequences.next();
                 rendering.add(withXY(x, y, (x$, y$) -> Screen.drawString(stack, font, extra, x$, y$, 0xffffff)));
                 y += font.lineHeight;
                 maxX = Math.max(maxX, x + font.width(extra));

@@ -1,6 +1,8 @@
 package com.matyrobbrt.testframework.annotation;
 
 import com.matyrobbrt.testframework.Test;
+import com.matyrobbrt.testframework.impl.test.AbstractTest;
+import net.minecraftforge.api.distmarker.Dist;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -8,10 +10,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used by {@link com.matyrobbrt.testframework.impl.AbstractTest} in order to collect information about a test.
+ * Annotation used by {@link AbstractTest} in order to collect information about a test.
  */
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.METHOD})
 public @interface TestHolder {
     /**
      * {@return the test's ID}
@@ -42,4 +44,9 @@ public @interface TestHolder {
      * {@return if this test is enabled by default}
      */
     boolean enabledByDefault() default false;
+
+    /**
+     * {@return the sides this test should be registered on}
+     */
+    Dist[] side() default {Dist.CLIENT, Dist.DEDICATED_SERVER};
 }

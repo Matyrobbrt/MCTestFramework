@@ -1,5 +1,11 @@
 package com.matyrobbrt.testframework.conf;
 
+import net.minecraft.MethodsReturnNonnullByDefault;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public record ClientConfiguration(int toggleOverlayKey, int openManagerKey) {
     public static Builder builder() {
         return new Builder();

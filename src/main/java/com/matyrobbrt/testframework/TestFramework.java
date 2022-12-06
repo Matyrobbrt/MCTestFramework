@@ -2,13 +2,16 @@ package com.matyrobbrt.testframework;
 
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.group.Group;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnmodifiableView;
 import org.slf4j.Logger;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -18,6 +21,8 @@ import java.util.Optional;
  * @see FrameworkConfiguration#create()
  * @see com.matyrobbrt.testframework.impl.TestFrameworkInternal
  */
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public interface TestFramework {
     /**
      * {@return the ID of this framework instance}
@@ -64,6 +69,8 @@ public interface TestFramework {
     /**
      * Interface used for accessing a framework's tests.
      */
+    @ParametersAreNonnullByDefault
+    @MethodsReturnNonnullByDefault
     interface Tests {
         /**
          * Queries a test by its {@linkplain Test#id() ID}.
@@ -125,9 +132,17 @@ public interface TestFramework {
         void register(Test test);
 
         /**
-         * {@return all the tests registered this this instance}
+         * {@return an unmodifiable view of all the tests registered this this instance}
          */
+        @UnmodifiableView
         Collection<Test> all();
+
+        /**
+         * Adds a global test listener.
+         *
+         * @param listener the listener
+         */
+        void addListener(TestListener listener);
     }
 
 }

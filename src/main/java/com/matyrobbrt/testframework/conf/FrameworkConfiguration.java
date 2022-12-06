@@ -1,33 +1,44 @@
 package com.matyrobbrt.testframework.conf;
 
-import com.matyrobbrt.testframework.Test;
-import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.collector.Collector;
+import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.impl.TestFrameworkImpl;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
-import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Type;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
 import java.util.function.Supplier;
 
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public record FrameworkConfiguration(
-        ResourceLocation id, boolean clientSynced, boolean modifiableByClients, int commandRequiredPermission,
+        ResourceLocation id, Collection<Feature> enabledFeatures, int commandRequiredPermission,
         SimpleChannel networkingChannel, List<String> enabledTests, @Nullable Supplier<ClientConfiguration> clientConfiguration,
-        TestCollector testCollector, @Nullable FrameworkConfiguration.GroupConfigurationCollector<?> groupConfigurationCollector
+        Map<CollectorType<?>, Collector<?>> collectors
 ) {
     public static Builder builder(ResourceLocation id) {
         return new Builder(id);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <Z> Collector<Z> collector(CollectorType<Z> type) {
+        return (Collector<Z>) collectors.getOrDefault(type, (c, a) -> {});
+    }
+
+    public boolean isEnabled(Feature feature) {
+        return enabledFeatures.contains(feature);
     }
 
     public TestFrameworkInternal create() {
@@ -36,26 +47,30 @@ public record FrameworkConfiguration(
 
     public static final class Builder {
         private final ResourceLocation id;
+        private final Collection<Feature> features = EnumSet.noneOf(Feature.class);
+        private final Map<CollectorType<?>, Collector<?>> collectors = new HashMap<>();
 
-        private boolean clientSynced = false, modifiableByClients = false;
         private int commandRequiredPermission = Commands.LEVEL_GAMEMASTERS;
         private @Nullable SimpleChannel networkingChannel;
         private final List<String> enabledTests = new ArrayList<>();
-        private TestCollector testCollector = FrameworkConfiguration.TestCollector.withAnnotation(TestHolder.class);
-        private @Nullable FrameworkConfiguration.GroupConfigurationCollector<?> groupConfigurationCollector;
 
         private @Nullable Supplier<ClientConfiguration> clientConfiguration;
 
         public Builder(ResourceLocation id) {
             this.id = id;
+
+            for (final Feature value : Feature.values()) {
+                if (value.isEnabledByDefault()) enable(value);
+            }
         }
 
-        public Builder syncToClients() {
-            this.clientSynced = true;
+        public Builder enable(Feature... features) {
+            this.features.addAll(List.of(features));
             return this;
         }
-        public Builder allowClientModifications() {
-            this.modifiableByClients = true;
+
+        public Builder disable(Feature... features) {
+            this.features.removeAll(List.of(features));
             return this;
         }
 
@@ -79,19 +94,13 @@ public record FrameworkConfiguration(
             return this;
         }
 
-        public Builder testCollector(TestCollector testCollector) {
-            this.testCollector = testCollector;
-            return this;
-        }
-
-        public <T extends Annotation> Builder groupConfigurationCollector(@Nullable FrameworkConfiguration.GroupConfigurationCollector<T> collector) {
-            this.groupConfigurationCollector = collector;
-            return this;
-        }
-
-        @ParametersAreNonnullByDefault
-        public <T extends Annotation> Builder groupConfigurationCollector(Class<T> annotation, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault, Function<T, String[]> parents) {
-            this.groupConfigurationCollector = new GroupConfigurationCollector<>(annotation, Type.getType(annotation), nameGetter, isEnabledByDefault, parents);
+        @SuppressWarnings("unchecked")
+        public <Z> Builder withCollector(CollectorType<Z> type, Collector<Z> collector) {
+            final Collector<Z> initial = (Collector<Z>) collectors.get(type);
+            if (initial != null) {
+                collector = initial.and(collector);
+            }
+            collectors.put(type, collector);
             return this;
         }
 
@@ -103,39 +112,10 @@ public record FrameworkConfiguration(
                             .networkProtocolVersion(() -> "yes")
                             .simpleChannel() : networkingChannel;
             return new FrameworkConfiguration(
-                    id, clientSynced, modifiableByClients, commandRequiredPermission,
-                    channel, enabledTests, clientConfiguration, testCollector, groupConfigurationCollector
+                    id, features, commandRequiredPermission,
+                    channel, enabledTests, clientConfiguration,
+                    Collections.unmodifiableMap(collectors)
             );
-        }
-    }
-
-    @FunctionalInterface
-    public interface TestCollector {
-        List<Test> collect(ModContainer container);
-
-        static TestCollector withAnnotation(Class<? extends Annotation> annotation) {
-            final Type annType = Type.getType(annotation);
-            return container -> container.getModInfo().getOwningFile().getFile().getScanResult()
-                    .getAnnotations().stream().filter(it -> annType.equals(it.annotationType()))
-                    .map(LamdbaExceptionUtils.rethrowFunction(annotationData -> {
-                        final Class<?> clazz = Class.forName(annotationData.clazz().getClassName());
-                        return (Test) clazz.getDeclaredConstructor().newInstance();
-                    })).toList();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public record GroupConfigurationCollector<T extends Annotation>(Class<T> annotation, Type asmType, Function<T, Component> nameGetter, Function<T, Boolean> isEnabledByDefault, Function<T, String[]> parents) {
-        public Component getName(Object o) {
-            return nameGetter.apply((T) o);
-        }
-
-        public boolean isEnabledByDefault(Object o) {
-            return isEnabledByDefault.apply((T) o);
-        }
-
-        public String[] getParents(Object o) {
-            return parents.apply((T) o);
         }
     }
 }
