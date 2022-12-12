@@ -13,6 +13,9 @@ archivesBaseName = 'testframework'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 sourceSets {
+    locator {}
+    lang {}
+
     client {
         compileClasspath += main.output
         compileClasspath += main.compileClasspath
@@ -21,10 +24,16 @@ sourceSets {
         resources {
             srcDir 'src/generated/resources'
         }
+        compileClasspath += lang.output
     }
     test {
-
+        compileClasspath += lang.output
     }
+}
+
+configurations {
+    langImplementation.extendsFrom(minecraft)
+    locatorImplementation.extendsFrom(minecraft)
 }
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
@@ -35,6 +44,7 @@ minecraft {
 
     runs {
         configureEach {
+            property 'forge.test.id', 'examplemod'
             mods {
                 examplemod {
                     source sourceSets.main
@@ -86,10 +96,48 @@ minecraft {
 repositories {
 }
 
+tasks.register('langJar', Jar) {
+    it.from(sourceSets.lang.output)
+    it.manifest {
+        attributes([
+                "Specification-Title"     : "testframeworklang",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : 'testframeworklang',
+                "Implementation-Version"  : project.jar.archiveVersion,
+                'FMLModType'              : 'LANGPROVIDER'
+        ])
+    }
+    it.archiveBaseName.set('lang')
+}
+
+tasks.register('locatorJar', Jar) {
+    it.from(sourceSets.locator.output)
+    it.manifest {
+        attributes([
+                "Specification-Title"     : "testframeworklocator",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : 'testframeworklocator',
+                "Implementation-Version"  : project.jar.archiveVersion,
+        ])
+    }
+    it.archiveBaseName.set('locator')
+}
+
 dependencies {
     minecraft 'net.minecraftforge:forge:1.19.2-43.1.7'
 
     testCompileOnly sourceSets.main.output
+
+    runtimeOnly(files(
+            tasks.locatorJar.archiveFile.get().asFile,
+            tasks.langJar.archiveFile.get().asFile
+    ))
+}
+
+tasks.configureEach {
+    if (it.name == 'prepareRunClient') {
+        it.dependsOn('locatorJar', 'langJar')
+    }
 }
 
 jar {

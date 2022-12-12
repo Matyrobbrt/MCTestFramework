@@ -7,12 +7,14 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -21,6 +23,16 @@ class EventListenerGroupImpl implements Test.EventListenerGroup {
     private final Map<Mod.EventBusSubscriber.Bus, EventListenerCollectorImpl> collectors = new HashMap<>();
     public EventListenerGroupImpl add(Mod.EventBusSubscriber.Bus type, IEventBus bus) {
         buses.put(type, bus);
+        return this;
+    }
+
+    public <T> EventListenerGroupImpl add(Mod.EventBusSubscriber.Bus type, @Nullable T container, Function<T, IEventBus> getter, IEventBus fallback) {
+        if (container == null) {
+            buses.put(type, fallback);
+        } else {
+            final IEventBus maybe = getter.apply(container);
+            buses.put(type, maybe == null ? fallback : maybe);
+        }
         return this;
     }
 

@@ -11,6 +11,7 @@ import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.gametest.DynamicStructureTemplates;
 import com.matyrobbrt.testframework.group.Group;
+import com.matyrobbrt.testframework.impl.lang.TFModContainer;
 import com.matyrobbrt.testframework.impl.packet.ChangeEnabledPacket;
 import com.matyrobbrt.testframework.impl.packet.ChangeStatusPacket;
 import com.matyrobbrt.testframework.impl.packet.TFPackets;
@@ -34,6 +35,8 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModContainer;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.network.PacketDistributor;
@@ -402,7 +405,7 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
         public void enable(String id) {
             if (enabled.contains(id)) return;
             final EventListenerGroupImpl collector = collectors.computeIfAbsent(id, it -> new EventListenerGroupImpl()
-                    .add(Mod.EventBusSubscriber.Bus.MOD, modBus)
+                    .add(Mod.EventBusSubscriber.Bus.MOD, ModList.get().getModContainerById(id).map(TFModContainer.class::cast).orElse(null), TFModContainer::getBus, modBus)
                     .add(Mod.EventBusSubscriber.Bus.FORGE, MinecraftForge.EVENT_BUS));
             byId(id).ifPresent(test -> test.onEnabled(collector));
             enabled.add(id);
@@ -439,7 +442,16 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
             } else {
                 test.groups().forEach(group -> getOrCreateGroup(group).add(test));
             }
-            test.init(TestFrameworkImpl.this);
+
+            ModList.get().getModContainerById(test.id())
+                    .ifPresentOrElse(container -> {
+                        final ModLoadingContext ctx = ModLoadingContext.get();
+                        final ModContainer old = ctx.getActiveContainer();
+                        ctx.setActiveContainer(container);
+                        // Set the container to the mod's container, so we can fake the loading mod
+                        test.init(TestFrameworkImpl.this);
+                        ctx.setActiveContainer(old);
+                    }, () -> test.init(TestFrameworkImpl.this));
         }
 
         private Group addGroupToParents(Group group) {

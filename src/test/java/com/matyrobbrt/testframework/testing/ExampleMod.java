@@ -3,6 +3,7 @@ package com.matyrobbrt.testframework.testing;
 import com.matyrobbrt.testframework.annotation.RegisterStructureTemplate;
 import com.matyrobbrt.testframework.annotation.TestGroup;
 import com.matyrobbrt.testframework.annotation.TestHolder;
+import com.matyrobbrt.testframework.annotation.TestMain;
 import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.collector.Collectors;
 import com.matyrobbrt.testframework.conf.ClientConfiguration;
@@ -10,6 +11,7 @@ import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
 import com.matyrobbrt.testframework.gametest.StructureTemplateBuilder;
 import com.matyrobbrt.testframework.impl.TestFrameworkInternal;
+import com.matyrobbrt.testframework.impl.lang.TFModContainer;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -18,12 +20,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
 
-@Mod("examplemod")
+@TestMain("examplemod")
 public class ExampleMod {
     @TestGroup(name = "Ungrouped")
     public static final String UNGROUPED = "ungrouped";
@@ -49,6 +52,8 @@ public class ExampleMod {
     static final StructureTemplate EMPTY_1x1 = StructureTemplateBuilder.empty(1, 1, 1);
 
     public ExampleMod() {
+        final IEventBus bus = ((TFModContainer)(ModLoadingContext.get().getActiveContainer())).getBus();
+
         final TestFrameworkInternal framework = FrameworkConfiguration.builder(new ResourceLocation("examplemod:tests"))
                 .clientConfiguration(() -> ClientConfiguration.builder()
                         .toggleOverlayKey(GLFW.GLFW_KEY_J)
@@ -66,7 +71,7 @@ public class ExampleMod {
                 .withCollector(CollectorType.GROUP_DATA, Collectors.defaultGroupCollector())
 
                 .build().create();
-        framework.init(FMLJavaModLoadingContext.get().getModEventBus(), ModLoadingContext.get().getActiveContainer());
+        framework.init(bus, ModLoadingContext.get().getActiveContainer());
 
         MinecraftForge.EVENT_BUS.addListener((final RegisterCommandsEvent event) -> {
             final LiteralArgumentBuilder<CommandSourceStack> node = Commands.literal("tests");
