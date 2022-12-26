@@ -6,6 +6,7 @@ import com.google.common.collect.Sets;
 import com.matyrobbrt.testframework.Test;
 import com.matyrobbrt.testframework.TestListener;
 import com.matyrobbrt.testframework.annotation.OnInit;
+import com.matyrobbrt.testframework.collector.Collector;
 import com.matyrobbrt.testframework.collector.CollectorType;
 import com.matyrobbrt.testframework.conf.Feature;
 import com.matyrobbrt.testframework.conf.FrameworkConfiguration;
@@ -29,6 +30,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.event.RegisterGameTestsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -242,10 +244,6 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
         byStage.get(OnInit.Stage.BEFORE_SETUP).forEach(cons -> cons.accept(this));
 
-        final List<Test> collected = collectTests(container);
-        logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
-        collected.forEach(tests()::register);
-
         configuration.collector(CollectorType.GROUP_DATA).collect(container, data -> {
             final Group group = tests().getOrCreateGroup(data.id());
             group.setTitle(data.title());
@@ -254,9 +252,18 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
                 tests().getOrCreateGroup(parent).add(group);
             }
         });
+        this.disabledTestData.fillGroups(tests);
+
+        final List<Test> collected = collectTests(container);
+        logger.info("Found {} tests: {}", collected.size(), String.join(", ", collected.stream().map(Test::id).toList()));
+        collected.forEach(tests()::register);
 
         modBus.addListener(new TFPackets(channel, this)::onCommonSetup);
         modBus.addListener((final RegisterGameTestsEvent event) -> event.register(GameTestRegistration.REGISTER_METHOD));
+        modBus.addListener((final AddPackFindersEvent event) -> event.addRepositorySource(new TestModPackFinder(
+                container.getModInfo().getOwningFile().getFile().findResource("packs"),
+                tests.tests::containsKey
+        )));
 
         if (FMLLoader.getDist().isClient()) {
             setupClient(this, modBus, container);
@@ -279,7 +286,17 @@ public class TestFrameworkImpl implements TestFrameworkInternal {
 
     @Override
     public List<Test> collectTests(final ModContainer container) {
-        return configuration.collector(CollectorType.TESTS).toCollection(container, ArrayList::new);
+        Collector<Test> collector = configuration.collector(CollectorType.TESTS);
+        if (!this.disabledTestData.enabledTestIds().isEmpty() || !this.disabledTestData.enabledGroups().isEmpty()) {
+            collector = collector.filter(this::shouldCollect);
+        }
+        return collector.toCollection(container, ArrayList::new);
+    }
+
+    private final DisabledTestData disabledTestData = DisabledTestData.get();
+    private boolean shouldCollect(Test test) {
+        if (disabledTestData.enabledTestIds().contains(test.id())) return false;
+        return test.groups().stream().noneMatch(disabledTestData.enabledGroups()::contains);
     }
 
     @Override

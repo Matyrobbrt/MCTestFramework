@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class TLModLocator extends AbstractJarFileModProvider implements IModLocator {
@@ -110,17 +111,6 @@ public class TLModLocator extends AbstractJarFileModProvider implements IModLoca
         return true;
     }
 
-    private void fileVisitor(final Path path, final ModFileScanData result) {
-        try (InputStream in = Files.newInputStream(path)) {
-            ModClassVisitor mcv = new ModClassVisitor();
-            ClassReader cr = new ClassReader(in);
-            cr.accept(mcv, 0);
-            mcv.buildData(result.getClasses(), result.getAnnotations());
-        } catch (IOException | IllegalArgumentException e) {
-            // mark path bad
-        }
-    }
-
     // See CommonLaunchHandler#getModClasses
     static TestSources getTestSources() {
 
@@ -153,5 +143,9 @@ public class TLModLocator extends AbstractJarFileModProvider implements IModLoca
      */
     record TestSources(String id, List<Path> paths) {
         public static final TestSources EMPTY = new TestSources("blank", List.of());
+    }
+
+    record DisabledData(Set<String> disabledTests, Set<String> disabledGroups) {
+
     }
 }

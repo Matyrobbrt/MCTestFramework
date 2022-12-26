@@ -8,6 +8,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 @ParametersAreNonnullByDefault
@@ -20,6 +21,12 @@ public interface Collector<Z> {
             this.collect(container, acceptor);
             other.collect(container, acceptor);
         };
+    }
+
+    default Collector<Z> filter(Predicate<Z> predicate) {
+        return (container, acceptor) -> this.collect(container, z -> {
+            if (predicate.test(z)) acceptor.accept(z);
+        });
     }
 
     default <C extends Collection<Z>> C toCollection(ModContainer container, Supplier<? extends C> collectionFactory) {
